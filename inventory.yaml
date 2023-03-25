@@ -6,7 +6,7 @@ all:
     shmni: 4096
   dbservers:
     hosts:
-      192.168.22.161:
+      <target-server-ip-here:
     vars: 
       ansible_user: root
       ansible_become_password: "{{ vault.dbservers_root_pass }}"
