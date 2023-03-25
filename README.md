@@ -2,7 +2,7 @@
 Automated install of Oracle DB on Red Hat Enterprise Linux on IBM zSystems.
 
 ## Instructions:
-On your workstation, complete the following steps to install Oracle DB on RHEL servers on IBM zSystems:
+On your workstation (easiest from separate RHEL server), complete the following steps to install Oracle DB on RHEL servers on IBM zSystems:
 1. Install git
 ```
 sudo dnf install git
