@@ -17,7 +17,7 @@ cd oracle_install
 ```
 4. Set variables
   - Set Oracle DB server(s) root password and oracle user's passwords in vault.yaml
-  - Set the IP addresses of the DB servers to connect to in inventory under dbserver.hosts.
+  - Set the IP addresses of the DB servers to connect to in inventory,yaml under dbserver.hosts where it says <target-server-ip-here>. Feel free to add as many as you'd like below the first one.
   - Ensure all other variables are correct for your environment.
   - Look through the install_oracle.yaml playbook to ensure playbook meets your specifications.
 4. If your executing Ansible from a RHEL server, run setup.sh to install Ansible, Python3 and Ansible Galaxy collections. Otherwise, this must be done manually - see setup.sh for details.
