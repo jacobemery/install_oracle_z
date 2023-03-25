@@ -1,1 +1,9 @@
-vault.yaml
+/*
+!LICENSE
+!README.md
+!install_oracle.yaml
+!inventory.yaml
+!requirements.yaml
+!roles
+!setup.sh
+!setup_and_run.sh
