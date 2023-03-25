@@ -1,0 +1,9 @@
+- hosts: localhost
+  vars:
+    string: "asd"
+  tasks:
+    - name: Print string if not empty
+      debug:
+        var: string
+      when: not string
+  
