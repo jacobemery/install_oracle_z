@@ -52,7 +52,7 @@
         - { group: oper, gid: 1002 }
         - { group: asmdba, gid: 1003 }
         - { group: asmoper, gid: 1004 }
-      when: ( 'asm' not in item.group ) or ( 'asm' in item.group and hostvars['dbservers'].asm == True )
+      when: ( 'asm' not in item.group ) or ( 'asm' in item.group and asm == True )
 
     - name: Create oracle user and add to groups.
       ansible.builtin.user:
@@ -60,7 +60,7 @@
         password: "{{ vault.oracle_pass }}"
         uid: 1000
         gid: oinstall
-        groups: "{{ 'oinstall,dba,oper' + ( 'asmdba,asmoper' when hostvars['dbservers'].asm == True else '' ) }}"
+        groups: "{{ 'oinstall,dba,oper' + ( 'asmdba,asmoper' when asm == True else '' ) }}"
         append: true
 
     - name: Create directories.
@@ -78,12 +78,12 @@
         - { path: "/u01/app/oracle/base" }
         - { path: "/u01/app/oracle/{{ v_maj_min }}/dbhome" }
         - { path: "/u01/app/grid/{{ v_maj_min }}/ghome" }
-      when: ( 'grid' not in item.path ) or ( 'grid' in item.path and hostvars['dbservers'].asm == True )
+      when: ( 'grid' not in item.path ) or ( 'grid' in item.path and asm == True )
     
     - name: Install pre-installation check RPM.
       vars: 
         v_maj: "{{ oracle_version.split('.')[:1] }}"
-        rh_maj: "{{ hostvars['dbservers'].redhat_version.split('.')[:1] }}"
+        rh_maj: "{{ redhat_version.split('.')[:1] }}"
       ansible.builtin.dnf:
         name: "{{ rpm_mount_dir }}/oracode/{{ v_maj }}c/ora-val-rpm-RH{{ rh_maj }}-DB-{{ v_maj }}c-{{ oracle_version }}.s390x.rpm"
 
@@ -138,19 +138,18 @@
           ulimit -s  10240   
           #defaults for shell startup for ulimits of oracle user
           export ORACLE_BASE=/u01/app/oracle/base
-          {{ 'export ORACLE_HOME=/u01/app/oracle/' + v_maj_min + '/dbhome' when hostvars['dbservers'].asm == False }}
-          {{ 'export ORACLE_HOME=/u01/app/grid/' + v_maj_min + '/ghome' when hostvars['dbservers'].asm == True }}
+          {{ 'export ORACLE_HOME=/u01/app/oracle/' + v_maj_min + '/dbhome' if asm == False else 'export ORACLE_HOME=/u01/app/grid/' + v_maj_min + '/ghome' }}
           export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/OPatch:$PATH:.
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
 
 - name: Setup Oracle Automated Storage Management (ASM).
   hosts: dbservers
-  when: hostvars['dbservers'].asm == True
   tasks:
     - name: Install RPMs for ASM.
       import_role:
         name: asm
         tasks_from: pre.yaml
+      when: asm == True
 
 # Disk Setup tasks not ready yet.
 
@@ -158,15 +157,16 @@
 #      import_role:
 #        name: asm
 #        tasks_from: setup_dasd.yaml
-#      when: hostvars['dbservers'].disk.type | lower == dasd
+#      when: asm == True and disk.type | lower == dasd 
 
 #    - name: Setup LUNs for ASM.
 #      import_role:
 #        name: asm
 #        tasks_from: setup_luns.yaml
-#      when: hostvars['dbservers'].disk.type | lower == dasd
+#      when: disk.type | lower == dasd
 
     - name: Confirm and verify changes for ASM.
       import_role:
         name: asm
         tasks_from: post.yaml
+      when: asm == True
