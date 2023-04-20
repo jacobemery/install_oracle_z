@@ -4,15 +4,18 @@ all:
     oracle_version: 19.0.1-1
     shmmax: 4294967296 #in bytes
     shmni: 4096
-  dbservers:
-    hosts:
-      <target-server-ip-here:
-    vars: 
-      ansible_user: root
-      ansible_become_password: "{{ vault.dbservers_root_pass }}"
-      rpm_mount_dir: /mnt/oraclenfs
-      redhat_version: 8.6
-      disk:
-        type: dasd
-        fs_type: xfs
-        path: /dev/dasdc
+  children:
+    dbservers:
+      hosts:
+        dbserver-1:
+          ansible_hostname: 
+          ansible_host: 
+      vars: 
+        ansible_user: root
+        ansible_become_password: "{{ vault.dbservers_root_pass }}"
+        rpm_mount_dir: /mnt/oraclenfs
+        redhat_version: 8.6
+        disk:
+          type: dasd
+          fs_type: xfs
+          path: /dev/dasdc
