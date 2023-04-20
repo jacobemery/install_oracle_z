@@ -131,8 +131,8 @@
       ansible.builtin.blockinfile:
         path: /home/oracle/.bash_profile
         block: | 
-        	# User specific environment and startup programs
-          umask 022   
+          # User specific environment and startup programs
+          umask 022
           ulimit -u 16384  
           ulimit -n 65536 
           ulimit -s  10240   
