@@ -1,6 +1,9 @@
 # install_oracle_z
 Ansible-automated install of Oracle Database and Oracle Automatic Storage Management (ASM) on Red Hat Enterprise Linux (RHEL) for IBM zSystems.
 
+# Description:
+This playbook automates the configuration of servers for Oracle Database installation. It performs tasks such as installing necessary dependencies, creating required user groups and users, setting up directories, and applying essential system configurations. Additionally, it includes optional tasks for Oracle Automatic Storage Management (ASM) setup and configuration, such as DASD setup and post-installation verifications. The playbook streamlines the process of preparing servers for Oracle Database deployment while ensuring all prerequisites are met.
+
 ## Pre-requisites:
 - Root shell to RHEL>=v8 on IBM zSystems.
 - RPM packages for Oracle Database and ASM for s390x architecture from the [Oracle Software Delivery Cloud](https://edelivery.oracle.com/) downloaded to your server.
