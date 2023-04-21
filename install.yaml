@@ -14,12 +14,6 @@
           - tigervnc-server
         state: present
 
-    - name: Disable SELinux.
-      tags: selinux
-      ansible.posix.selinux:
-        state: disabled
-        update_kernel_param: true
-
     - name: Set transparent_hugepage to never with grubby.
       tags: grubby
       ansible.builtin.command: "grubby --update-kernel=ALL --args='transparent_hugepage=never'"
