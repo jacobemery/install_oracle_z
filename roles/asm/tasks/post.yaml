@@ -3,11 +3,11 @@
   ansible.builtin.command:
     cmd: lsblk --fs
   register: lsblk_check
+  changed_when: false
 
 - name: Print lsblk output for debugging/verification.
   ansible.builtin.debug:
-    msg: "{{ lsblk_check.stdout }}"
+    msg: "{{ lsblk_check.stdout_lines }}"
 
 - name: Reload udevadm.
-  ansible.builtin.command:
-    cmd: "udevadm control --reload-rules ;  udevadm trigger"
+  ansible.builtin.command: "udevadm control --reload-rules ; udevadm trigger"

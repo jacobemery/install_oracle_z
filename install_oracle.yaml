@@ -16,21 +16,16 @@
         update_kernel_param: true
 
     - name: Set transparent_hugepage to never with grubby.
-      ansible.builtin.command:
-        cmd: "grubby --update-kernel=ALL --args='transparent_hugepage=never'"
+      ansible.builtin.command: "grubby --update-kernel=ALL --args='transparent_hugepage=never'"
 
     - name: Verify changes with zipl.
-      ansible.builtin.command:
-        cmd: "zipl -V"
+      ansible.builtin.command: "zipl -V"
+      register: zipl
+      changed_when: false
 
-    - name: Reboot server.
-      ansible.builtin.reboot:
-        msg: "Reboot initiated by Ansible"
-        connect_timeout: 5
-        reboot_timeout: 600
-        pre_reboot_delay: 0
-        post_reboot_delay: 30
-        test_command: whoami
+    - name: Print zipl output from previous task.
+      debug:
+        var: zipl.stdout_lines
 
     - name: Stop firewall.
       ansible.builtin.service:
@@ -50,18 +45,24 @@
         - { group: oinstall, gid: 1000 }
         - { group: dba, gid: 1001 }
         - { group: oper, gid: 1002 }
+
+    - name: Create groups for ASM.
+      ansible.builtin.group:
+        name: "{{ item.group }}"
+        gid: "{{ item.gid }}"
+      loop:
         - { group: asmdba, gid: 1003 }
         - { group: asmoper, gid: 1004 }
-      when: ( 'asm' not in item.group ) or ( 'asm' in item.group and asm == True )
+      when: asm
 
     - name: Create oracle user and add to groups.
       ansible.builtin.user:
         name: oracle
-        password: "{{ vault.oracle_pass }}"
+        password: "{{ lookup('pipe', 'echo {{ oracle_pass }} | openssl passwd -6 -stdin') }}" 
         uid: 1000
-        gid: oinstall
-        groups: "{{ 'oinstall,dba,oper' + ( 'asmdba,asmoper' when asm == True else '' ) }}"
+        groups: "{{ ('oinstall,dba,oper') + (',asmdba,asmoper' if asm == True else '') }}"
         append: true
+        update_password: on_create
 
     - name: Create directories.
       vars: 
@@ -77,18 +78,30 @@
         - { path: "/u01/app/oracle/" }
         - { path: "/u01/app/oracle/base" }
         - { path: "/u01/app/oracle/{{ v_maj_min }}/dbhome" }
-        - { path: "/u01/app/grid/{{ v_maj_min }}/ghome" }
-      when: ( 'grid' not in item.path ) or ( 'grid' in item.path and asm == True )
+
+    - name: Create directories for ASM.
+      vars: 
+        v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') }}"
+      ansible.builtin.file:
+        path: "/u01/app/grid/{{ v_maj_min }}/ghome"
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: '0775'
+        recurse: true
+      when: asm
     
     - name: Install pre-installation check RPM.
       vars: 
-        v_maj: "{{ oracle_version.split('.')[:1] }}"
-        rh_maj: "{{ redhat_version.split('.')[:1] }}"
+        v_maj: "{{ oracle_version | split('.') | first | string }}"
+        rh_maj: "{{ redhat_version | string | split('.') | first }}"
       ansible.builtin.dnf:
         name: "{{ rpm_mount_dir }}/oracode/{{ v_maj }}c/ora-val-rpm-RH{{ rh_maj }}-DB-{{ v_maj }}c-{{ oracle_version }}.s390x.rpm"
+        disable_gpg_check: true
 
     - name: Add limits to /etc/security/limits.conf for Oracle DB.
       ansible.builtin.blockinfile:
+        path: /etc/security/limits.conf
         block: |
           oracle soft nproc 2047 
           oracle hard nproc 16384 
@@ -115,7 +128,7 @@
         - { key: fs.file-max, value: 6815744, reload: no }
         - { key: fs.aio-max-nr, value: 3145728, reload: no }
         - { key: kernel.shmmax, value: "{{ shmmax }}", reload: no }
-        - { key: kernel.shmall, value: "{{ ( shmmax | int ) / ( shmni | int ) }}", reload: no }
+        - { key: kernel.shmall, value: "{{ ( shmmax / shmni )  | int }}", reload: no }
         - { key: kernel.shmmni, value: "{{ shmni }}", reload: no }
         - { key: kernel.sem, value: 250 32000 100 128, reload: no }
         - { key: net.ipv4.ip_local_port_range, value: 9000 65500, reload: no }
@@ -142,31 +155,27 @@
           export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/OPatch:$PATH:.
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
 
-- name: Setup Oracle Automated Storage Management (ASM).
-  hosts: dbservers
-  tasks:
     - name: Install RPMs for ASM.
       import_role:
         name: asm
         tasks_from: pre.yaml
-      when: asm == True
+      when: asm
 
-# Disk Setup tasks not ready yet.
+    - name: Setup DASD for ASM.
+      import_role:
+        name: asm
+        tasks_from: dasd.yaml
+      when: asm and ( disk.type | lower == 'dasd' )
 
-#    - name: Setup DASD for ASM.
-#      import_role:
-#        name: asm
-#        tasks_from: setup_dasd.yaml
-#      when: asm == True and disk.type | lower == dasd 
-
+# LUNS are WIP
 #    - name: Setup LUNs for ASM.
 #      import_role:
 #        name: asm
-#        tasks_from: setup_luns.yaml
-#      when: disk.type | lower == dasd
+#        tasks_from: luns.yaml
+#      when: asm and ( disk.type | lower == 'luns' )
 
     - name: Confirm and verify changes for ASM.
       import_role:
         name: asm
         tasks_from: post.yaml
-      when: asm == True
+      when: asm
