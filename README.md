@@ -1,4 +1,4 @@
-# oracle_install_z
+# install_oracle_z
 Ansible-automated install of Oracle Database and Oracle Automatic Storage Management (ASM) on Red Hat Enterprise Linux (RHEL) for IBM zSystems.
 
 ## Instructions:
