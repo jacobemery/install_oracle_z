@@ -16,9 +16,9 @@ git clone https://github.com/jacobemery/install_oracle_z.git
 cd oracle_install
 ```
 ### 4. Set variables
-  - Set the IP addresses of the DB server in inventory.yaml where there is a `#X`
-  - Ensure all other variables are correct for your environment.
-  - Look through the install_oracle.yaml playbook to ensure it meets your needs.
+  - Ensure all variables in `inventory.yaml` are correct for your environment.
+  - Double-check `rpm_mount_dir` - this must be the absolute path to where your Oracle install RPMs are stored.
+  - Double-check `disk.path` - this must be the absolute path of the disk to be used for ASM, which is optional (with the `asm` variable).
 ```
 vi inventory.yaml
 ```
