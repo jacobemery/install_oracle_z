@@ -9,7 +9,7 @@ dnf install git
 ```
 ### 2. Clone this repository
 ```
-git clone https://github.com/jacobemery/oracle_install.git
+git clone https://github.com/jacobemery/install_oracle_z.git
 ```
 ### 3. Change into directory.
 ```
@@ -42,7 +42,7 @@ ansible-vault encrypt group_vars/dbservers/vault.yaml
 ```
 ### 7. Run the playbook.
 ```
-ansible-playbook install_oracle.yaml
+ansible-playbook install.yaml
 ```
 Alternatively, setup and run the playbook all at once. <b>Note</b>: not recommended for first-time users.
 ```
