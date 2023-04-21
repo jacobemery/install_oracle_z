@@ -16,7 +16,7 @@ dbservers:
     ansible_user: root
     ansible_become_password: "{{ vault_dbservers_root_pass }}"  # must be filled in at group_vars/dbservers/vault.yaml
     oracle_pass: "{{ vault_oracle_pass }}"                      # must be filled in at group_vars/dbservers/vault.yaml
-    rpm_mount_dir: /mnt/oraclenfs                               # absolute path to the RPMs for install
+    rpm_dir: /mnt/oraclenfs                               # absolute path to the RPMs for install
     disk:
       type: dasd                                                # only dasd is supported for now, only used when asm is true
       fs_type: xfs                                              # desired filesystem type for device, only used when asm is true

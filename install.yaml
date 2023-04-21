@@ -105,7 +105,7 @@
     - name: Install pre-installation check RPM.
       tags: rpm
       ansible.builtin.dnf:
-        name: "{{ rpm_mount_dir }}/oracode/{{ v_maj }}c/ora-val-rpm-RH{{ ansible_distribution_major_version}}-DB-{{ v_maj }}c-{{ oracle_version }}.s390x.rpm"
+        name: "{{ rpm_dir }}/oracode/{{ v_maj }}c/ora-val-rpm-RH{{ ansible_distribution_major_version}}-DB-{{ v_maj }}c-{{ oracle_version }}.s390x.rpm"
         disable_gpg_check: true
 
     - name: Add limits to /etc/security/limits.conf for Oracle DB.

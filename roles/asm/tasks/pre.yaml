@@ -3,7 +3,7 @@
 - name: Find Grid.zip for next task.
   tags: pre, asm
   ansible.builtin.find:
-    paths: "{{ rpm_mount_dir }}/oracode/{{ v_maj }}c/"
+    paths: "{{ rpm_dir }}/oracode/{{ v_maj }}c/"
     patterns: '*Grid.zip'
   register: grid_zip_file_name
 
