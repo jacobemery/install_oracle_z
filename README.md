@@ -1,6 +1,11 @@
 # install_oracle_z
 Ansible-automated install of Oracle Database and Oracle Automatic Storage Management (ASM) on Red Hat Enterprise Linux (RHEL) for IBM zSystems.
 
+## Pre-requisites:
+- Root shell to RHEL>=v8 on IBM zSystems.
+- RPM packages for Oracle Database and ASM for s390x architecture from the [Oracle Software Delivery Cloud](https://edelivery.oracle.com/) downloaded to your server.
+- Minumum of 2GB RAM and 10GB (+16GB if using ASM) of disk space.
+
 ## Instructions:
 From your RHEL server as root, complete the following steps:
 ### 1. Install git
@@ -17,7 +22,7 @@ cd oracle_install
 ```
 ### 4. Set variables
   - Ensure all variables in `inventory.yaml` are correct for your environment.
-  - Double-check `rpm_mount_dir` - this must be the absolute path to where your Oracle install RPMs are stored.
+  - Double-check `rpm_dir` - this must be the absolute path to where your Oracle install RPMs are stored.
   - Double-check `disk.path` - this must be the absolute path of the disk to be used for ASM, which is optional (with the `asm` variable).
 ```
 vi inventory.yaml
