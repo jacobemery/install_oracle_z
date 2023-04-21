@@ -1,24 +1,23 @@
 all:
-  vars: 
-    asm: true
-    oracle_version: 19.0.1-1
-    shmmax: 4294967296 #in bytes
-    shmni: 4096
+  vars:
+    asm: true                                                   # True or False: install Oracle Automate Storage Management
+    oracle_version: 19.0.1-1                                    # full desired Oracle Database version
+    shmmax: 4294967296                                          # shared memory max kernel pararm, in bytes
+    shmni: 4096                                                 # shared memory number of identifiers kernel pararm, in megabytes
   children:
     dbservers:
 
 dbservers:
   hosts:
     dbserver-1:
-      ansible_host: #X 
+      ansible_host: 127.0.0.1
       ansible_connection: local
-  vars: 
+  vars:
     ansible_user: root
-    ansible_become_password: "{{ vault_dbservers_root_pass }}"
-    oracle_pass: "{{ vault_oracle_pass }}"
-    rpm_mount_dir: /mnt/oraclenfs
-    redhat_version: 8.6
+    ansible_become_password: "{{ vault_dbservers_root_pass }}"  # must be filled in at group_vars/dbservers/vault.yaml
+    oracle_pass: "{{ vault_oracle_pass }}"                      # must be filled in at group_vars/dbservers/vault.yaml
+    rpm_mount_dir: /mnt/oraclenfs                               # absolute path to the RPMs for install
     disk:
-      type: dasd
-      fs_type: xfs
-      path: /dev/dasdc
+      type: dasd                                                # only dasd is supported for now, only used when asm is true
+      fs_type: xfs                                              # desired filesystem type for device, only used when asm is true
+      path: /dev/dasdc                                          # absolute path to the device, only used when asm is true
