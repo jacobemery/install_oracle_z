@@ -6,16 +6,19 @@ all:
     shmni: 4096
   children:
     dbservers:
-      hosts:
-        dbserver-1:
-          ansible_hostname: 
-          ansible_host: 
-      vars: 
-        ansible_user: root
-        ansible_become_password: "{{ vault.dbservers_root_pass }}"
-        rpm_mount_dir: /mnt/oraclenfs
-        redhat_version: 8.6
-        disk:
-          type: dasd
-          fs_type: xfs
-          path: /dev/dasdc
+
+dbservers:
+  hosts:
+    dbserver-1:
+      ansible_host: #X 
+      ansible_connection: local
+  vars: 
+    ansible_user: root
+    ansible_become_password: "{{ vault_dbservers_root_pass }}"
+    oracle_pass: "{{ vault_oracle_pass }}"
+    rpm_mount_dir: /mnt/oraclenfs
+    redhat_version: 8.6
+    disk:
+      type: dasd
+      fs_type: xfs
+      path: /dev/dasdc
