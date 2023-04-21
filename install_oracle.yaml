@@ -2,8 +2,13 @@
 
 - name: Configure server - Oracle DB install.
   hosts: dbservers
+  vars:
+    v_maj: "{{ oracle_version | split('.') | first | string }}"
+    v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
+    rh_maj: "{{ redhat_version | string | split('.') | first }}"
   tasks:
     - name: Install dependencies.
+      tags: pkgs
       ansible.builtin.package:
         name: 
           - nfs-utils
@@ -11,33 +16,40 @@
         state: present
 
     - name: Disable SELinux.
+      tags: selinux
       ansible.posix.selinux:
         state: disabled
         update_kernel_param: true
 
     - name: Set transparent_hugepage to never with grubby.
+      tags: grubby
       ansible.builtin.command: "grubby --update-kernel=ALL --args='transparent_hugepage=never'"
 
     - name: Verify changes with zipl.
+      tags: zipl
       ansible.builtin.command: "zipl -V"
       register: zipl
       changed_when: false
 
     - name: Print zipl output from previous task.
+      tags: zipl
       debug:
         var: zipl.stdout_lines
 
     - name: Stop firewall.
+      tags: firewall
       ansible.builtin.service:
         name: firewalld
         state: stopped
 
     - name: Disable firewall.
+      tags: firewall
       ansible.builtin.service:
         name: firewalld
         enabled: false
 
     - name: Create groups.
+      tags: user_mgmt, groups
       ansible.builtin.group:
         name: "{{ item.group }}"
         gid: "{{ item.gid }}"
@@ -47,6 +59,7 @@
         - { group: oper, gid: 1002 }
 
     - name: Create groups for ASM.
+      tags: user_mgmt, groups, asm
       ansible.builtin.group:
         name: "{{ item.group }}"
         gid: "{{ item.gid }}"
@@ -56,6 +69,7 @@
       when: asm
 
     - name: Create oracle user and add to groups.
+      tags: user_mgmt, groups, users
       ansible.builtin.user:
         name: oracle
         password: "{{ lookup('pipe', 'echo {{ oracle_pass }} | openssl passwd -6 -stdin') }}" 
@@ -65,8 +79,7 @@
         update_password: on_create
 
     - name: Create directories.
-      vars: 
-        v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') }}"
+      tags: user_mgmt, users, dir
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
@@ -80,8 +93,7 @@
         - { path: "/u01/app/oracle/{{ v_maj_min }}/dbhome" }
 
     - name: Create directories for ASM.
-      vars: 
-        v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') }}"
+      tags: user_mgmt, users, dir
       ansible.builtin.file:
         path: "/u01/app/grid/{{ v_maj_min }}/ghome"
         state: directory
@@ -92,14 +104,13 @@
       when: asm
     
     - name: Install pre-installation check RPM.
-      vars: 
-        v_maj: "{{ oracle_version | split('.') | first | string }}"
-        rh_maj: "{{ redhat_version | string | split('.') | first }}"
+      tags: rpm
       ansible.builtin.dnf:
         name: "{{ rpm_mount_dir }}/oracode/{{ v_maj }}c/ora-val-rpm-RH{{ rh_maj }}-DB-{{ v_maj }}c-{{ oracle_version }}.s390x.rpm"
         disable_gpg_check: true
 
     - name: Add limits to /etc/security/limits.conf for Oracle DB.
+      tags: limits
       ansible.builtin.blockinfile:
         path: /etc/security/limits.conf
         block: |
@@ -113,6 +124,7 @@
           oracle hard memlock unlimited 
 
     - name: Set additional Oracle performance parameters to /etc/sysctl.conf.
+      tags: sysctl
       ansible.builtin.sysctl:
         name: "{{ item.key }}"
         value: "{{ item.value }}"
@@ -139,8 +151,7 @@
         - { key: vm.hugetlb_shm_group, value: 1000, reload: yes }
 
     - name: Add info to oracle user's .bash_profile.
-      vars: 
-        v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') }}"
+      tags: user_mgmt, users
       ansible.builtin.blockinfile:
         path: /home/oracle/.bash_profile
         block: | 
@@ -155,13 +166,15 @@
           export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/OPatch:$PATH:.
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
 
-    - name: Install RPMs for ASM.
+    - name: Install ASM requirements.
+      tags: pre, asm
       import_role:
         name: asm
         tasks_from: pre.yaml
       when: asm
 
     - name: Setup DASD for ASM.
+      tags: dasd, asm
       import_role:
         name: asm
         tasks_from: dasd.yaml
@@ -169,12 +182,14 @@
 
 # LUNS are WIP
 #    - name: Setup LUNs for ASM.
+#      tags: luns, asm
 #      import_role:
 #        name: asm
 #        tasks_from: luns.yaml
 #      when: asm and ( disk.type | lower == 'luns' )
 
     - name: Confirm and verify changes for ASM.
+      tags: post, asm
       import_role:
         name: asm
         tasks_from: post.yaml

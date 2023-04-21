@@ -1,17 +1,14 @@
 ---
 
 - name: Find Grid.zip for next task.
-  vars:
-    v_maj: "{{ oracle_version | split('.') | first | string }}"
+  tags: pre, asm
   ansible.builtin.find:
     paths: "{{ rpm_mount_dir }}/oracode/{{ v_maj }}c/"
     patterns: '*Grid.zip'
   register: grid_zip_file_name
 
 - name: Unzip Grid.zip.
-  vars:
-    v_maj: "{{ oracle_version | split('.') | first | string }}"
-    v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
+  tags: pre, asm
   ansible.builtin.unarchive:
     src: "{{ grid_zip_file_name.files[0].path }}"
     dest: "/u01/app/grid/{{ v_maj_min }}/ghome/"
@@ -22,16 +19,14 @@
     mode: '0775'
 
 - name: Find cvuqdisk RPM for next task.
-  vars:
-    v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
+  tags: pre, asm
   ansible.builtin.find:
     paths: "/u01/app/grid/{{ v_maj_min }}/ghome/cv/rpm/"
     patterns: 'cvuqdisk-*.rpm'
   register: cvuqdisk_rpm_file_name
  
 - name: Install cvuqdisk RPM.
-  vars: 
-    v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
+  tags: pre, asm
   ansible.builtin.dnf:
     name: "{{ cvuqdisk_rpm_file_name.files[0].path }}"
     disable_gpg_check: true

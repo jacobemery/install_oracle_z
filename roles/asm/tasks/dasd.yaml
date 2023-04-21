@@ -1,37 +1,41 @@
 ---
-
-# Not ready yet, need to confirm ccw grep task.
-
 - name: Check if target disk is alredy formatted to avoid accidential loss of data.
+  tags: dasd, asm
   ansible.builtin.shell: "dasdview -x {{ disk.path }} | grep 'format  ' | awk '{print $8}'"
   register: formatted_check
   changed_when: false
 
 - name: Format disk, if using DASD for ASM and disk is not already formatted.
+  tags: dasd, asm
   ansible.builtin.command: "dasdfmt -vpyb 4096 {{ disk.path }}"
   when: "'Not formatted' in formatted_check.stdout"
 
 - name: Check if target disk is already partitioned to avoid accidental loss of data.
+  tags: dasd, asm
   ansible.builtin.shell: "lsblk -lno NAME {{ disk.path }} | wc -l"
   register: part_check
   changed_when: false
 
 - name: Create partition on dasd.
+  tags: dasd, asm
   ansible.builtin.command: "fdasd {{ disk.path }} -a"
   when: part_check.stdout | int - 1 == 0
 
 - name: Make filesystem on partitioned dasd.
+  tags: dasd, asm
   ansible.builtin.filesystem:
     dev: "{{ disk.path }}1"
     fstype: "{{ disk.fs_type }}"
     resizefs: true
 
 - name: Get channel command word (ccw) value from lsdasd for use in next task.
+  tags: dasd, asm
   ansible.builtin.shell: "lsdasd | grep {{ disk.path.split('/')[-1] }} | awk '{print $1}'"
   register: ccw
   changed_when: false
 
 - name: Setup disks for ASM.
+  tags: dasd, asm
   vars: 
     ccw_num: "{{ ccw.stdout.split('.')[-1] | join('.') }}"
   ansible.builtin.lineinfile:

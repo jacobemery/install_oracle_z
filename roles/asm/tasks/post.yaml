@@ -1,13 +1,15 @@
 ---
 - name: Get lsblk output for debugging/verification.
-  ansible.builtin.command:
-    cmd: lsblk --fs
+  tags: post, asm
+  ansible.builtin.command: lsblk --fs
   register: lsblk_check
   changed_when: false
 
 - name: Print lsblk output for debugging/verification.
+  tags: post, asm
   ansible.builtin.debug:
     msg: "{{ lsblk_check.stdout_lines }}"
 
 - name: Reload udevadm.
+  tags: post, asm
   ansible.builtin.command: "udevadm control --reload-rules ; udevadm trigger"

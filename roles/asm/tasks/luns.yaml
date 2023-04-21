@@ -3,14 +3,15 @@
 # Not ready yet, need LUN equivalent for these tasks.
 
 - name: Format disk, if using LUNs for ASM and disk is not already formatted.
-  ansible.builtin.command: 
-    cmd: "mkfs.{{ hostvars['dbservers'].disk.fs_type }} {{ hostvars['dbservers'].disk.path }}"
+  tags: luns, asm
+  ansible.builtin.command: "mkfs.{{ hostvars['dbservers'].disk.fs_type }} {{ hostvars['dbservers'].disk.path }}"
   when: 
     - hostvars['dbservers'].asm == True and 
     - hostvars['dbservers'].disk.type | lower == lun and
     - not formatted.stdout
 
 - name: Create a partition on disk for LUNs, if using ASM.
+  tags: luns, asm
   community.general.parted:
     device: "{{ hostvars['dbservers'].disk.path }}"
     part_end: "100%"
@@ -21,6 +22,7 @@
     - hostvars['dbservers'].disk.type | lower == lun
 
 - name: Setup disks, if using LUNs for ASM.
+  tags: luns, asm
   vars: 
     ccw_num: "{{ ccw.stdout.split('.')[-1] | join('.') }}"
   ansible.builtin.lineinfile:
