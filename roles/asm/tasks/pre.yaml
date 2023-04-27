@@ -1,32 +1,72 @@
 ---
 
-- name: Find Grid.zip for next task.
-  tags: pre, asm
-  ansible.builtin.find:
-    paths: "{{ rpm_dir }}/oracode/{{ v_maj }}c/"
-    patterns: '*Grid.zip'
-  register: grid_zip_file_name
-
 - name: Unzip Grid.zip.
   tags: pre, asm
   ansible.builtin.unarchive:
-    src: "{{ grid_zip_file_name.files[0].path }}"
-    dest: "/u01/app/grid/{{ v_maj_min }}/ghome/"
-    creates: "/u01/app/grid/{{ v_maj_min }}/ghome/cv"
+    src: "{{ asm.rpm.grid }}"
+    dest: "{{ asm.grid_home }}"
+    creates: "{{ asm.grid_home }}/cv"
     remote_src: true
-    owner: oracle
+    owner: "{{ oracle.user }}"
     group: oinstall
     mode: '0775'
-
-- name: Find cvuqdisk RPM for next task.
-  tags: pre, asm
-  ansible.builtin.find:
-    paths: "/u01/app/grid/{{ v_maj_min }}/ghome/cv/rpm/"
-    patterns: 'cvuqdisk-*.rpm'
-  register: cvuqdisk_rpm_file_name
  
+- name: Add cvuqdisk export to root and oracle user's .bash_profile.
+  tags: pre, asm
+  ansible.builtin.lineinfile:
+    line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP"
+    path: "{{ item }}"
+  loop:
+    - "/home/{{ oracle.user }}/.bash_profile"
+    - "{{ ansible_user_dir }}/.bash_profile"
+
 - name: Install cvuqdisk RPM.
   tags: pre, asm
   ansible.builtin.dnf:
-    name: "{{ cvuqdisk_rpm_file_name.files[0].path }}"
+    name: "{{ asm.rpm.cvuqdisk }}"
     disable_gpg_check: true
+
+- name: Stop avahi-daemon, as recommended.
+  tags: pre, asm
+  ansible.builtin.service:
+    name: avahi-daemon
+    state: stopped
+    enabled: false
+
+- name: Disable the Zeroconf network configuration feature, as recommended.
+  tags: pre, asm
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/network
+    backup: true
+    line: "NOZEROCONF=yes"
+    search_string: "NOZEROCONF="
+  notify: Restart NetworkManager
+
+- name: Configure Network Time Protocol (NTP), as recommended (1/3) - install package.
+  tags: pre, asm
+  ansible.builtin.package:
+    name: chrony
+
+- name: Configure Network Time Protocol (NTP), as recommended (2/3) - set firewall.
+  tags: pre, asm
+  ansible.posix.firewalld:
+    service: ntp
+    permanent: yes
+    state: enabled
+  notify: Reload firewall
+
+- name: Configure Network Time Protocol (NTP), as recommended (3/3).
+  ansible.builtin.lineinfile:
+    path: /etc/chrony.conf
+    backup: true
+    line: "server {{ ntp_server }} iburst"
+    regexp: ^.*server.*iburst.*$
+  notify: Restart chronyd
+
+- name: Ensure all files within grid home have proper ownership.
+  ansible.builtin.file:
+    path: "{{ asm.grid_home }}"
+    state: directory
+    owner: "{{ oracle_user }}"
+    group: oinstall
+    recurse: true

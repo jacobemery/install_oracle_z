@@ -1,0 +1,28 @@
+---
+
+- name: Install rng-tools package.
+  tags: pkgs, install_packages
+  ansible.builtin.package:
+    name: rng-tools
+    state: present
+
+- name: Start rngd service.
+  tags: rngd, service
+  ansible.builtin.service:
+    name: rngd
+    state: present
+    enabled: yes
+
+- name: Change to recommended random number methodology.
+  tags: rngd, service
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system/rngd.service
+    line: "ExecStart=/sbin/rngd -f --fill-watermark=0 --rng-device /dev/prandom"
+    replace: "ExecStart="
+  notify: Restart rngd
+
+- name: Verify system has the required amount of entropy >1000.
+  tags: rngd, service
+  ansible.builtin.command: "cat /proc/sys/kernel/random/entropy_avail"
+  register: entropy_check
+  failed_when: entropy_check.stdout | int < 1000

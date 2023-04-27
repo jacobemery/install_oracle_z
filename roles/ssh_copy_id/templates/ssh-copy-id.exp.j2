@@ -1,0 +1,20 @@
+#!/usr/local/bin/expect -f
+
+set force_conservative 0
+if {$force_conservative} {
+	set send_slow {1 .1}
+	proc send {ignore arg} {
+		sleep .1
+		exp_send -s -- $arg
+	}
+}
+
+set timeout 20
+spawn ssh-copy-id -f -o StrictHostKeyChecking=no -i {{ hostvars[host].ansible_ssh_private_key_file }} {{ hostvars[host].ansible_user }}@{{ hostvars[host].ansible_host }}
+expect {
+	"password: " {
+		send -- "{{ hostvars[host].ansible_become_password }}\r"
+		expect eof
+	}
+	"Number of key(s) added:" {}
+}

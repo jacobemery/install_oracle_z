@@ -13,3 +13,15 @@
 - name: Reload udevadm.
   tags: post, asm
   ansible.builtin.command: "udevadm control --reload-rules ; udevadm trigger"
+
+- name: Template response file for silent GridSetup.sh
+  tags: post, asm
+  ansible.builtin.template:
+    src: grid_install.rsp.j2
+    dest: "{{ asm.grid_home }}/grid_install.rsp"
+
+#- name: Install Oracle Grid Infrastructure.
+#  tags: post, asm
+#  ansible.builtin.shell: "{{ asm.grid_home }}/GridSetup.sh -silent -responseFile {{ asm.grid_home }}/grid_install.rsp"
+
+#  ./root.sh oracle.install.root.SH_LOCATION=/usr/local/bin

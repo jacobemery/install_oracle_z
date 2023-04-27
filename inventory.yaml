@@ -1,23 +1,37 @@
 all:
-  vars:
-    asm: true                                                   # True or False: install Oracle Automate Storage Management
-    oracle_version: 19.0.1-1                                    # full desired Oracle Database version
-    shmmax: 4294967296                                          # shared memory max kernel pararm, in bytes
-    shmni: 4096                                                 # shared memory number of identifiers kernel pararm, in megabytes
   children:
+    nfs_server:
+      hosts:
+        127.0.0.1:
+          ansible_connection: local
+          export: /mnt/oraclenfs
     dbservers:
-
-dbservers:
-  hosts:
-    dbserver-1:
-      ansible_host: 127.0.0.1
-      ansible_connection: local
-  vars:
-    ansible_user: root
-    ansible_become_password: "{{ vault_dbservers_root_pass }}"  # must be filled in at group_vars/dbservers/vault.yaml
-    oracle_pass: "{{ vault_oracle_pass }}"                      # must be filled in at group_vars/dbservers/vault.yaml
-    rpm_dir: /mnt/oraclenfs                               # absolute path to the RPMs for install
-    disk:
-      type: dasd                                                # only dasd is supported for now, only used when asm is true
-      fs_type: xfs                                              # desired filesystem type for device, only used when asm is true
-      path: /dev/dasdc                                          # absolute path to the device, only used when asm is true
+      hosts:
+        #X.X.X.X:
+      vars:
+        ansible_user: root
+        ansible_become_password: "{{ vault_dbservers_root_pass }}"   # must be filled in at group_vars/dbservers/vault.yaml
+        ansible_ssh_private_key_file: #X
+        nfs_mount_point: /mnt/oraclenfs
+        oracle:
+          version: 19.0.1-1
+          home: /u01/oracle/dbhome
+          base: /u01/oracle/base
+          inventory: /u01/oracle/oraInventory
+          user: oracle
+          pass: "{{ vault_oracle_pass }}"                             # must be filled in at group_vars/dbservers/vault.yaml
+          rpm:
+            ora-val: "{{ nfs_mount_point }}/ora-val-rpm-RH8-DB-19c-19.0.1-1.s390x.rpm"  # absolute path or URL to the RPMs for install 
+          shmmax: 4294967296                                          # shared memory max kernel pararm, in bytes
+          shmni: 4096                                                 # shared memory number of identifiers kernel pararm, in megabytes
+        asm:
+          setup: True                                                 # True or False: install Oracle Automate Storage Management
+          grid_home: /u01/grid/ghome
+          rpm:
+            cvuqdisk: "{{ nfs_mount_point }}/oracode/19c/"
+            grid: "{{ nfs_mount_point }}/oracode/19c/"
+          disk: 
+            type: dasd                                                # only dasd is supported for now, only used when asm is true
+            fs_type: xfs                                              # desired filesystem type for device, only used when asm is true
+            path: /dev/dasdc                                          # absolute path to the device, only used when asm is true
+        ntp_server: ntp.pool.org

@@ -1,0 +1,39 @@
+---
+- name: Install EPEL repository.
+  ansible.builtin.package:
+    name: epel-release
+    state: present
+
+- name: Install NFS server.
+  ansible.builtin.package:
+    name:
+      - nfs-utils
+      - rpcbind
+    state: present
+
+- name: Create the shared NFS directory.
+  ansible.builtin.file:
+    path: "{{ export }}"
+    state: directory
+    owner: nfsnobody
+    group: nfsnobody
+    mode: '0755'
+
+- name: Configure NFS exports.
+  ansible.builtin.blockinfile:
+    path: /etc/exports
+    block: |
+      {{ export }} *(rw,sync,no_root_squash,fsid=0,no_subtree_check,vers=3)
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable and start NFS server and RPC bind services
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - nfs-server
+    - rpcbind

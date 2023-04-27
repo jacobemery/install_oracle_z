@@ -1,0 +1,22 @@
+---
+- name: Install tigervnc-server package.
+  tags: pkgs, install_packages
+  ansible.builtin.package:
+    name: tigervnc-server
+    state: present
+
+- name: Add configuration for vncserver.
+  tags: vnc, service
+  ansible.builtin.template:
+    src: vncserver@.service.j2
+    dest: /etc/systemd/system/vncserver@.service
+  notify: Restart vncserver
+
+- name: Add vncserver port to firewall.
+  tags: vnc, service
+  ansible.posix.firewalld:
+    port: 8080/tcp
+    permanent: yes
+    state: enabled
+    zone: public
+  notify: Reload firewall

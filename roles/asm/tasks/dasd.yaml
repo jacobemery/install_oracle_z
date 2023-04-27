@@ -1,44 +1,44 @@
 ---
 - name: Check if target disk is alredy formatted to avoid accidential loss of data.
   tags: dasd, asm
-  ansible.builtin.shell: "dasdview -x {{ disk.path }} | grep 'format  ' | awk '{print $8}'"
+  ansible.builtin.shell: "dasdview -x {{ asm.disk.path }} | grep 'format  ' | awk '{print $8}'"
   register: formatted_check
   changed_when: false
 
 - name: Format disk, if using DASD for ASM and disk is not already formatted.
   tags: dasd, asm
-  ansible.builtin.command: "dasdfmt -vpyb 4096 {{ disk.path }}"
+  ansible.builtin.command: "dasdfmt -vpyb 4096 {{ asm.disk.path }}"
   when: "'Not formatted' in formatted_check.stdout"
 
 - name: Check if target disk is already partitioned to avoid accidental loss of data.
   tags: dasd, asm
-  ansible.builtin.shell: "lsblk -lno NAME {{ disk.path }} | wc -l"
+  ansible.builtin.shell: "lsblk -lno NAME {{ asm.disk.path }} | wc -l"
   register: part_check
   changed_when: false
 
 - name: Create partition on dasd.
   tags: dasd, asm
-  ansible.builtin.command: "fdasd {{ disk.path }} -a"
+  ansible.builtin.command: "fdasd {{ asm.disk.path }} -a"
   when: part_check.stdout | int - 1 == 0
 
 - name: Make filesystem on partitioned dasd.
   tags: dasd, asm
   ansible.builtin.filesystem:
-    dev: "{{ disk.path }}1"
-    fstype: "{{ disk.fs_type }}"
+    dev: "{{ asm.disk.path }}1"
+    fstype: "{{ asm.disk.fs_type }}"
     resizefs: true
 
 - name: Get channel command word (ccw) value from lsdasd for use in next task.
   tags: dasd, asm
-  ansible.builtin.shell: "lsdasd | grep {{ disk.path.split('/')[-1] }} | awk '{print $1}'"
+  ansible.builtin.shell: "lsdasd | grep {{ asm.disk.path.split('/')[-1] }} | awk '{print $1}'"
   register: ccw
   changed_when: false
 
 - name: Setup disks for ASM.
   tags: dasd, asm
   vars: 
-    ccw_num: "{{ ccw.stdout.split('.')[-1] | join('.') }}"
+    ccw_num: "{{ ccw.stdout.split('.')[-1] }}"
   ansible.builtin.lineinfile:
-    line: ACTION=="add|change", KERNEL=="dasd*1", ENV{ID_PATH}=="{{ ccw.stdout }}", SYMLINK+="oracleasm/asm{{ ccw_num }}", GROUP="oinstall",  OWNER="oracle", MODE="0660"
+    line: 'KERNEL=="dasd*1", SUBSYSTEM=="block", ENV{ID_PATH}=="{{ ccw.stdout }}", SYMLINK+="oracleasm/asm{{ ccw_num }}", GROUP="oinstall", OWNER="{{ oracle.user }}", MODE="0660"'
     path: /etc/udev/rules.d/99-udev-oracle.rules
     create: true
