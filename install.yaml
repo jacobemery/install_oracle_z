@@ -47,6 +47,12 @@
     #     name: firewalld
     #     enabled: false
 
+    - name: Add FQDN to /etc/hosts.
+      tags: hostname
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ ansible_default_ipv4.address }} {{ ansible_fqdn }} {{ ansible_hostname }}"
+
     - name: Create groups.
       tags: user_mgmt, groups
       ansible.builtin.group:
@@ -179,7 +185,7 @@
 
     - name: Setup Automatic Storage Manager (ASM).
       tags: pre, asm
-      import_role:
+      include_role:
         name: asm
         tasks_from: "{{ item }}.yaml"
       loop: 
