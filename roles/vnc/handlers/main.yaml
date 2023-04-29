@@ -1,7 +1,8 @@
 ---
-- name: Restart vncserver
-  tags: vnc, service
-  ansible.builtin.systemd:
-    name: vncserver@:1
-    state: restarted
-    daemon_reload: yes
+
+
+- name: Reload firewall
+  tags: firewalld
+  systemd:
+    name: firewalld
+    state: reloaded
