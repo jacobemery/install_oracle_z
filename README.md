@@ -35,9 +35,10 @@ vi inventory.yaml
 vi group_vars/db_servers/vault.yaml
 ```
 ### 5. Setup Ansible Vault
-- Create a vault password. Make sure to replace `<vault-password>` with your desired password.
+- Create a vault password. Make sure to replace `vault-password` with your desired password. 
+- This command also sets the permissions so that only you can read/write the file.
 ```
-echo <vault-password> > .password.txt && chmod 600 .password.txt 
+echo 'vault-password' > .password.txt && chmod 600 .password.txt
 ```
 - Encrypt the vault.
 ```
