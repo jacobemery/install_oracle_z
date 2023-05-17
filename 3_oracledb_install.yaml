@@ -1,0 +1,138 @@
+# Work in Progress
+---
+- name: Configure server - Oracle DB install.
+  hosts: db_servers
+  vars:
+    v_maj: "{{ oracle.version | split('.') | first | string }}"
+    v_maj_min: "{{ oracle.version.split('.')[:2] | join('.') | string }}"
+  tasks:
+
+    - name: Add oracle home info to root and oracle user's .bash_profiles.
+      tags: user_mgmt, users
+      ansible.builtin.lineinfile:
+        path: "{{ item }}"
+        line: "export ORACLE_HOME={{ oracle.home }}" 
+        search_string: "export ORACLE_HOME="
+        create: true
+      loop:
+        - "/home/{{ oracle.user }}/.bash_profile"
+        - "/root/.bash_profile"
+
+    - name: Install pre-installation check RPM.
+      tags: rpm
+      ansible.builtin.dnf:
+        name: "{{ oracle.rpm.ora_val }}"
+        disable_gpg_check: true 
+
+    - name: Unzip Oracle DB.
+      tags: zip, db
+      ansible.builtin.unarchive:
+        src: "{{ oracle.rpm.db }}"
+        dest: "{{ oracle.home }}"
+        owner: "{{ oracle.user }}"
+        group: oinstall
+        creates: "{{ oracle.home }}/runInstaller"
+        remote_src: true
+
+    - name: Template response file for silent install.
+      tags: install, db, template
+      vars:
+        ccw_num: "{{ ccw.stdout.split('.')[-1] }}"
+      ansible.builtin.template:
+        src: db_install.rsp.j2
+        dest: "/home/{{ oracle.user }}/db_install.rsp"
+        owner: "{{ oracle.user }}"
+        group: oinstall
+        mode: '0600'
+
+    - name: Install Oracle DB.
+      tags: install, db, runinstaller
+      become: true
+      become_user: "{{ oracle.user }}"
+      ansible.builtin.shell: |
+        set -o pipefail 
+        source /home/{{ oracle.user }}/.bash_profile
+        {{ oracle.home }}/oui/bin/runInstaller -silent -detachHome ORACLE_HOME={{ oracle.home }}
+        {{ oracle.home }}/runInstaller -silent -ignorePrereqFailure -waitforcompletion -noconfig -responseFile /home/{{ oracle.user }}/db_install.rsp
+      register: db_install
+      failed_when: "'Successfully Setup Software' not in db_install.stdout"
+
+    - name: Attempting to run root.sh script...
+      block:
+      - name: Run root.sh script.
+        tags: install, db, root
+        ansible.builtin.command: "{{ oracle.home }}/root.sh"
+        register: root_exec
+      
+      always: 
+
+        - name: Print immediate output from root.sh script.
+          tags: install, db, root
+          ansible.builtin.debug:
+            msg: "{{ root_exec.stdout_lines }}"
+
+        - name: Check root.sh script's logs.
+          tags: install, db, root
+          ansible.builtin.shell: "find {{ oracle.home }}/install -name 'root*.log' -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2- | xargs cat"
+          register: root_log
+          changed_when: false
+        
+        - name: Print logs from root.sh script.
+          tags: install, db, root
+          ansible.builtin.debug:
+            msg: "{{ root_log.stdout_lines }}"
+
+    - name: Template out netca response file.
+      tags: install, db, netca
+      ansible.builtin.template:
+        src: netca.rsp.j2
+        dest: "/home/{{ oracle.user }}/netca.rsp"
+        owner: "{{ oracle.user }}"
+        group: oinstall
+        mode: '0600'
+      when: not asm.setup
+
+    - name: Configure netca with response file.
+      tags: install, db, netca
+      become: true
+      become_user: "{{ oracle.user }}"
+      ansible.builtin.command: 
+        cmd: "{{ oracle.home }}/bin/netca -silent -responsefile /home/{{ oracle.user }}/netca.rsp"
+        creates: "{{ oracle.home }}/network/admin/listener.ora"
+      when: not asm.setup
+    
+    - name: Check status of listener for debugging.
+      tags: install, db, netca
+      ansible.builtin.command: "lsnrctl status"
+      register: lsnrctl_status
+      failed_when: "'The command completed successfully' in lsnrctl_status.stdout_lines"
+      when: not asm.setup
+
+    - name: Print listener status for debugging/verification.
+      tags: install, db, netca
+      ansible.builtin.debug:
+        msg: "{{ lsnrctl_status.stdout_lines }}"
+      when: not asm.setup
+
+    - name: Template out dbca response file.
+      tags: install, db, dbca
+      ansible.builtin.template:
+        src: dbca.rsp.j2
+        dest: "/home/{{ oracle.user }}/dbca.rsp"
+        owner: "{{ oracle.user }}"
+        group: oinstall
+        mode: '0600'
+
+    - name: Create Oracle database.
+      tags: install, db, dbca
+      become: true
+      become_user: "{{ oracle.user }}"
+      ansible.builtin.command: 
+        cmd: "{{ oracle.home }}/bin/dbca -silent -createDatabase -responseFile /home/{{ oracle.user }}/dbca.rsp"
+        creates: "{{ oracle.home }}/dbs/init{{ oracle.db.unique_name }}.ora"
+      register: dbca
+    
+    - name: Print output of Oracle database creation for debugging/verification.
+      tags: install, db, dbca
+      ansible.builtin.debug:
+        msg: "{{ dbca.stdout_lines }}"

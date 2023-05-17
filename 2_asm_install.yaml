@@ -1,0 +1,231 @@
+---
+- name: Configure server - Oracle DB install.
+  hosts: db_servers
+  vars:
+    v_maj: "{{ oracle.version | split('.') | first | string }}"
+    v_maj_min: "{{ oracle.version.split('.')[:2] | join('.') | string }}"
+
+  tasks:
+
+    - name: Create groups for ASM.
+      tags: user_mgmt, groups, asm
+      ansible.builtin.group:
+        name: "{{ item.group }}"
+        gid: "{{ item.gid }}"
+      loop:
+        - { group: asmdba, gid: 1003 }
+        - { group: asmoper, gid: 1004 }
+        - { group: asmadmin, gid: 1005 }
+      when: asm.setup
+    
+    - name: Create grid user and add to ASM groups.
+      tags: user_mgmt, groups, users
+      ansible.builtin.user:
+        name: "{{ asm.grid_user }}"
+        password: "{{ asm.grid_pass | password_hash('sha512') }}"
+        groups: "{{ item }}"
+        append: true
+        update_password: on_create
+      loop:
+        - asmadmin
+        - asmdba
+        - asmoper
+      when: asm.setup
+
+    - name: Create directories for ASM.
+      tags: user_mgmt, users, dir
+      ansible.builtin.file:
+        path: "{{ asm.grid_home }}"
+        state: directory
+        owner: "{{ asm.grid_user }}"
+        group: oinstall
+        mode: '0775'
+        recurse: true
+      when: asm.setup
+
+    - name: Add info to root and oracle user's .bash_profiles.
+      tags: user_mgmt, users
+      ansible.builtin.lineinfile:
+        path: "{{ item.path }}"
+        line: "{{ item.line  }}"
+        search_string: "{{ item.search_string | default('none')  }}"
+        create: true
+      loop:
+        - { path: "/home/{{ asm.grid_user }}/.bash_profile", line: "export GRID_HOME={{ asm.grid_home }}", search_string: 'export GRID_HOME=' }
+        - { path: "/home/{{ asm.grid_user }}/.bash_profile", line: "{{ 'export ORACLE_HOME=' + asm.grid_home }}", search_string: 'export ORACLE_HOME=' }
+        - { path: "/home/{{ asm.grid_user }}/.bash_profile", line: "export PATH=$ORACLE_HOME/bin:$PATH" }
+        - { path: "/root/.bash_profile", line: "export GRID_HOME={{ asm.grid_home }}", search_string: 'export GRID_HOME=' }
+        - { path: "/root/.bash_profile", line: "{{ 'export ORACLE_HOME=' + asm.grid_home }}", search_string: 'export ORACLE_HOME=' }
+        - { path: "/root/.bash_profile", line: "export PATH=$ORACLE_HOME/bin:$PATH" }
+      when: asm.setup
+
+    - name: Ensure grid home directory exists.
+      tags: pre, asm
+      ansible.builtin.file:
+        path: "{{ asm.grid_home }}"
+        state: directory
+      when: asm.setup
+
+    - name: Unzip Grid home.
+      tags: pre, asm
+      ansible.builtin.unarchive:
+        src: "{{ asm.rpm.grid }}"
+        dest: "{{ asm.grid_home }}"
+        creates: "{{ asm.grid_home }}/cv"
+        remote_src: true
+        owner: "{{ oracle.user }}"
+        group: oinstall
+        mode: '0775'
+      when: asm.setup
+
+    - name: Ensure all files within grid home have proper ownership after unzip.
+      tags: pre, asm
+      ansible.builtin.file:
+        path: "{{ asm.grid_home }}"
+        state: directory
+        owner: "{{ oracle.user }}"
+        group: oinstall
+        recurse: true
+      when: asm.setup
+    
+    - name: Add cvuqdisk export to root and oracle user's .bash_profile.
+      tags: pre, asm
+      ansible.builtin.lineinfile:
+        line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP"
+        path: "{{ item }}"
+      loop:
+        - "/home/{{ oracle.user }}/.bash_profile"
+        - "{{ ansible_user_dir }}/.bash_profile"
+      when: asm.setup
+
+    - name: Install cvuqdisk RPM.
+      tags: pre, asm
+      ansible.builtin.dnf:
+        name: "{{ asm.rpm.cvuqdisk }}"
+        disable_gpg_check: true
+      when: asm.setup
+
+    - name: Stop avahi-daemon, as recommended.
+      tags: pre, asm
+      ansible.builtin.service:
+        name: avahi-daemon
+        state: stopped
+        enabled: false
+      when: asm.setup
+
+    - name: Disable the Zeroconf network configuration feature, as recommended.
+      tags: pre, asm
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/network
+        backup: true
+        line: "NOZEROCONF=yes"
+        search_string: "NOZEROCONF="
+      notify: Restart NetworkManager
+      when: asm.setup
+
+    - name: Configure Network Time Protocol (NTP), as recommended (1/3) - install package.
+      tags: pre, asm
+      ansible.builtin.package:
+        name: chrony
+      when: asm.setup
+
+    - name: Configure Network Time Protocol (NTP), as recommended (2/3) - set firewall.
+      tags: pre, asm
+      ansible.posix.firewalld:
+        service: ntp
+        permanent: yes
+        state: enabled
+      notify: Reload firewall
+      when: asm.setup
+
+    - name: Configure Network Time Protocol (NTP), as recommended - set NTP server (3/3).
+      tags: pre, asm
+      ansible.builtin.lineinfile:
+        path: /etc/chrony.conf
+        backup: true
+        line: "server {{ ntp_server }} iburst"
+        regexp: ^.*server.*iburst.*$
+      notify: Restart chronyd
+      when: asm.setup
+
+    - name: Create swap space, if requested (1/9) - create and zero out swap file.
+      tags: pre, asm, swap
+      ansible.builtin.command: 
+        cmd: "dd if=/dev/zero of={{ asm.swap.path }} bs=1M count={{ asm.swap.size }}"
+        creates: "{{ asm.swap.path }}"
+      when: asm.swap.create and asm.setup
+
+    - name: Create swap space, if requested (2/9) - set permissions.
+      tags: pre, asm, swap
+      ansible.builtin.file:
+        path: "{{ asm.swap.path }}"
+        owner: root
+        group: root
+        mode: '0600'
+      when: asm.swap.create and asm.setup
+
+    - name: Create swap space, if requested (3/9) - check if swap space already exists.
+      tags: pre, asm, swap
+      ansible.builtin.shell: file {{ asm.swap.path }} | grep swap
+      register: swap_exists
+      ignore_errors: yes
+      changed_when: false
+      when: asm.swap.create and asm.setup
+
+    - name: Create swap space, if requested (4/9) - make swap space.
+      tags: pre, asm, swap
+      ansible.builtin.command: "mkswap {{ asm.swap.path }}"
+      when: asm.swap.create and swap_exists.rc != 0 and asm.setup
+
+    - name: Create swap space, if requested (5/9) - check if swap is already on
+      tags: pre, asm, swap
+      ansible.builtin.shell: "swapon -s | grep {{ asm.swap.path }}"
+      register: swap_on
+      ignore_errors: true
+      changed_when: false
+      when: asm.swap.create and asm.setup
+      
+    - name: Create swap space, if requested (6/9) - initalize swap space.
+      tags: pre, asm, swap
+      ansible.builtin.command: "swapon {{ asm.swap.path }}"
+      when: asm.swap.create and swap_on.rc != 0 and asm.setup
+
+    - name: Create swap space, if requested (7/9) - write swap entry in fstab.
+      tags: pre, asm, swap
+      ansible.posix.mount: 
+        path: none
+        src: "{{ asm.swap.path }}"
+        state: present
+        fstype: swap
+        opts: sw
+      when: asm.swap.create and asm.setup
+
+    - name: Create swap space, if requested (8/9) - check created swap space.
+      tags: pre, asm, swap
+      ansible.builtin.command: "free -h"
+      changed_when: false
+      register: check_swap
+      when: asm.swap.create and asm.setup
+
+    - name: Create swap space, if requested (9/9) - print swap space info for debugging/verification.
+      tags: pre, asm, swap
+      ansible.builtin.debug:
+        msg: "{{ check_swap.stdout_lines }}"
+      when: asm.swap.create and asm.setup
+
+    - name: Setup disk for ASM.
+      tags: disk, asm
+      ansible.builtin.include_role:
+        name: asm
+        tasks_from: "{{ asm.disk.type }}.yaml"
+      when: asm.setup
+
+    - name: Install ASM.
+      tags: install, asm
+      ansible.builtin.include_role: 
+        name: asm
+        tasks_from: install.yaml
+      when: asm.setup
+
+  handlers:
+    - include_tasks: handlers/main.yaml

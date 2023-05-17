@@ -1,0 +1,117 @@
+---
+- name: Get lsblk output for debugging/verification.
+  tags: install, asm
+  ansible.builtin.command: lsblk --fs
+  register: lsblk_check
+  changed_when: false
+
+- name: Print lsblk output for debugging/verification.
+  tags: install, asm
+  ansible.builtin.debug:
+    msg: "{{ lsblk_check.stdout_lines }}"
+
+- name: Reload udevadm.
+  tags: install, asm
+  ansible.builtin.command: "udevadm control --reload-rules ; udevadm trigger"
+
+- name: Unzip new OPatch to replace old.
+  tags: install, asm
+  ansible.builtin.unarchive:
+    src: "{{ asm.rpm.opatch }}"
+    dest: "{{ asm.grid_home }}"
+    remote_src: true
+
+- name: Get channel command word (ccw) value from lsdasd for use in next task.
+  tags: install, asm
+  ansible.builtin.shell: "lsdasd | grep {{ asm.disk.path.split('/')[-1] }} | awk '{print $1}'"
+  register: ccw
+  changed_when: false
+  when: asm.disk.type == 'dasd'
+
+- name: Template response file for silent GridSetup.sh
+  tags: install, asm
+  vars:
+    ccw_num: "{{ ccw.stdout.split('.')[-1] }}"
+  ansible.builtin.template:
+    src: grid_install.rsp.j2
+    dest: "{{ asm.grid_home }}/install/response/grid_install.rsp"
+    owner: "{{ asm.grid_user }}"
+    group: oinstall
+    mode: '0700'
+
+- name: Ensure all files within grid home have proper ownership after unzip.
+  tags: pre, asm
+  ansible.builtin.file:
+    path: "{{ asm.grid_home }}"
+    state: directory
+    owner: "{{ asm.grid_user }}"
+    group: oinstall
+    recurse: true
+
+- name: Attempting to install Oracle Grid Infrastructure...
+  block:
+    - name: Install Oracle Grid Infrastructure using templated response file and apply release update.
+      tags: install, asm
+      become: true
+      become_user: "{{ asm.grid_user }}"
+      ansible.builtin.shell: |
+        set -o pipefail 
+        source /home/{{ asm.grid_user }}/.bash_profile
+        {{ asm.grid_home }}/oui/bin/runInstaller -silent -detachHome ORACLE_HOME={{ asm.grid_home }}
+        {{ asm.grid_home }}/gridSetup.sh -silent -responseFile {{ asm.grid_home }}/install/response/grid_install.rsp -applyRU {{ asm.rpm.ru }} -ignorePrereqFailure -waitforcompletion
+      register: grid_setup
+      failed_when: "'Successfully Setup Software' not in grid_setup.stdout"
+    
+  rescue:
+    
+    - name: Remove grid home to avoid future failures.
+      tags: install, asm
+      ansible.builtin.file:
+        state: absent
+        path: "{{ asm.grid_home }}"
+    
+    - name: gridSetup.sh failed!
+      tags: install, asm
+      fail:
+        msg: "ERROR: gridSetup.sh failed. Please see output for debugging purposes and re-run asm role when ready."
+  
+  always:
+    - name: Print results from gridSetup.sh
+      tags: install, asm
+      ansible.builtin.debug:
+        msg: "{{ grid_setup.stdout_lines }}"
+
+- name: Run orainstRoot.sh script.
+  tags: install, asm
+  ansible.builtin.command: "{{ oracle.base }}/oraInventory/orainstRoot.sh"
+
+- name: Finish gridSetup configuration.
+  tags: install, asm
+  become: true
+  become_user: "{{ asm.grid_user }}"
+  ansible.builtin.shell: "{{ asm.grid_home }}/gridSetup.sh -silent -executeConfigTools -responseFile {{ asm.grid_home }}/install/response/grid_install.rsp"
+
+- name: Attempting to run root.sh script...
+  block:
+  - name: Run root.sh script.
+    tags: install, asm
+    ansible.builtin.command: "{{ asm.grid_home }}/root.sh"
+    register: root_exec
+  
+  always: 
+
+    - name: Print immediate output from root.sh script.
+      tags: install, asm
+      ansible.builtin.debug:
+        msg: "{{ root_exec.stdout_lines }}"
+
+    - name: Check root.sh script's logs.
+      tags: install, asm
+      ansible.builtin.shell: "find {{ asm.grid_home }}/install -name 'root*.log' -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2- | xargs cat"
+      register: root_log
+      changed_when: false
+    
+    - name: Print logs from root.sh script.
+      tags: install, asm
+      ansible.builtin.debug:
+        msg: "{{ root_log.stdout_lines }}"

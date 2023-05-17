@@ -27,6 +27,8 @@
     dev: "{{ asm.disk.path }}1"
     fstype: "{{ asm.disk.fs_type }}"
     resizefs: true
+    force: yes
+  when: "asm.disk.path ~ '1' not in ansible_mounts | map(attribute='device') | list"
 
 - name: Get channel command word (ccw) value from lsdasd for use in next task.
   tags: dasd, asm
@@ -36,9 +38,9 @@
 
 - name: Setup disks for ASM.
   tags: dasd, asm
-  vars: 
+  vars:
     ccw_num: "{{ ccw.stdout.split('.')[-1] }}"
   ansible.builtin.lineinfile:
-    line: 'KERNEL=="dasd*1", SUBSYSTEM=="block", ENV{ID_PATH}=="{{ ccw.stdout }}", SYMLINK+="oracleasm/asm{{ ccw_num }}", GROUP="oinstall", OWNER="{{ oracle.user }}", MODE="0660"'
+    line: 'KERNEL=="dasd*1", SUBSYSTEM=="block", ENV{ID_PATH}=="ccw-{{ ccw.stdout }}", SYMLINK+="oracleasm/asm{{ ccw_num }}", GROUP="oinstall", OWNER="{{ asm.grid_user }}", MODE="0660"'
     path: /etc/udev/rules.d/99-udev-oracle.rules
     create: true

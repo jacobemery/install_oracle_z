@@ -26,21 +26,33 @@
     path: /etc/tigervnc/vncserver.users
     line: ":1={{ oracle.user }}"
 
+- name: Create VNC config directory for Oracle user.
+  tags: vnc, service
+  ansible.builtin.file:
+    path: /home/{{ oracle.user }}/{{ item.file }}
+    state: "{{ item.state }}"
+    owner: "{{ oracle.user }}"
+    group: "{{ oracle.user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { file: '.vnc', state: 'directory', mode: '0700' }
+    - { file: '.vnc/config', state: 'touch', mode: '0600' }
+
+- name: Set vncserver password for oracle user.
+  tags: vnc, service
+  ansible.builtin.shell: "printf '{{ oracle.pass }}\n{{ oracle.pass }}\n' | vncpasswd -f > /home/{{ oracle.user }}/.vnc/passwd"
+  args:
+    creates: "/home/{{ oracle.user }}/.vnc/passwd"
+
 - name: Set use gnome for vncserver.
   tags: vnc, service
   ansible.builtin.lineinfile:
     path: /home/{{ oracle.user }}/.vnc/config
     line: "session=gnome"
 
-- name: Create vncserver config file for oracle user.
-  tags: vnc, service
-  ansible.builtin.shell: "printf '{{ oracle.pass }}\n{{ oracle.pass }}\n' | vncpasswd -f > /home/{{ oracle.user }}/.vnc/passwd"
-  args:
-    creates: "/home/{{ oracle.user }}/.vnc/passwd"
-
 - name: Start and enable vnc server.
   tags: vnc, service
   ansible.builtin.service:
     name: vncserver@:1
-    state: started
+    state: restarted
     enabled: true

@@ -4,22 +4,22 @@
 
 - name: Format disk, if using LUNs for ASM and disk is not already formatted.
   tags: luns, asm
-  ansible.builtin.command: "mkfs.{{ hostvars['dbservers'].disk.fs_type }} {{ hostvars['dbservers'].disk.path }}"
+  ansible.builtin.command: "mkfs.{{ hostvars['db_servers'].disk.fs_type }} {{ hostvars['db_servers'].disk.path }}"
   when: 
-    - hostvars['dbservers'].asm == True and 
-    - hostvars['dbservers'].disk.type | lower == lun and
+    - hostvars['db_servers'].asm == True and 
+    - hostvars['db_servers'].disk.type | lower == lun and
     - not formatted.stdout
 
 - name: Create a partition on disk for LUNs, if using ASM.
   tags: luns, asm
   community.general.parted:
-    device: "{{ hostvars['dbservers'].disk.path }}"
+    device: "{{ hostvars['db_servers'].disk.path }}"
     part_end: "100%"
     resize: true
     state: present
   when: 
-    - hostvars['dbservers'].asm == True and
-    - hostvars['dbservers'].disk.type | lower == lun
+    - hostvars['db_servers'].asm == True and
+    - hostvars['db_servers'].disk.type | lower == lun
 
 - name: Setup disks, if using LUNs for ASM.
   tags: luns, asm

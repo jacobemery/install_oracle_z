@@ -1,35 +1,49 @@
 all:
   children:
-    nfs_server:
+    db_servers:
       hosts:
-        127.0.0.1:
-          ansible_connection: local
-          export: /mnt/oraclenfs
-    dbservers:
-      hosts:
-        #X.X.X.X:
+        #1.1.1.1
       vars:
         ansible_user: root
-        ansible_become_password: "{{ vault_dbservers_root_pass }}"   # must be filled in at group_vars/dbservers/vault.yaml
+        ansible_become_password: "{{ vault_db_servers_root_pass }}"   # must be filled in at group_vars/db_servers/vault.yaml
         ansible_ssh_private_key_file: #X
         nfs_mount_point: /mnt/oraclenfs
         oracle:
           version: 19.0.1-1
-          home: /u01/oracle/dbhome
-          base: /u01/oracle/base
-          inventory: /u01/oracle/oraInventory
+          home: /u01/app/oracle/19.0/dbhome
+          base: /u01/app
+          inventory: /u01/app/oraInventory
           user: oracle
-          pass: "{{ vault_oracle_pass }}"                             # must be filled in at group_vars/dbservers/vault.yaml
+          pass: "{{ vault_oracle_pass }}"                             # must be filled in at group_vars/db_servers/vault.yaml
           rpm:
-            ora-val: "{{ nfs_mount_point }}/ora-val-rpm-RH8-DB-19c-19.0.1-1.s390x.rpm"  # absolute path or URL to the RPMs for install 
+            ora_val: "{{ nfs_mount_point }}/oracode/19c/ora-val-rpm-RH8-DB-19c-19.0.1-1.s390x.rpm"  # absolute path or URL to the RPMs for install 
+            db: "{{ nfs_mount_point}}/oracode/19c/V982648-01_19cDB.zip"
+            ru: "{{ nfs_mount_point }}oracode/19c/35037840"
+          install_edition: EE
           shmmax: 4294967296                                          # shared memory max kernel pararm, in bytes
           shmni: 4096                                                 # shared memory number of identifiers kernel pararm, in megabytes
+          db:
+            unique_name: #X
+            system_pass: "{{ vault_db_system_pass }}"
+            sys_pass: "{{ vault_db_sys_pass }}"
         asm:
-          setup: True                                                 # True or False: install Oracle Automate Storage Management
-          grid_home: /u01/grid/ghome
+          setup: true                                                 # True or False: install Oracle Automate Storage Management
+          grid_home: /u01/app/grid/19.0/ghome
+          grid_user: oracle
+          grid_pass: "{{ vault_grid_user_pass }}"
+          sys_pass: "{{ vault_asm_sys_pass }}"
+          oms_pass: "{{ vault_asm_oms_pass }}"
+          monitor_pass: "{{ vault_asm_monitor_pass }}"
+          option: HA_CONFIG
+          swap: 
+            create: true                                              # True or False: create required swap space?
+            path: /var/tmp/swap1                                      # Absolute path to desired swap file, only used if asm.swap.create is True
+            size: 700                                                 # Size of swap file, in MB, only used if asm.swap.create is True
           rpm:
-            cvuqdisk: "{{ nfs_mount_point }}/oracode/19c/"
-            grid: "{{ nfs_mount_point }}/oracode/19c/"
+            cvuqdisk: "/u01/app/grid/19.0/ghome/cv/rpm/cvuqdisk-1.0.10-1.rpm"
+            grid: "{{ nfs_mount_point }}/oracode/19c/V982652-01_19cGrid.zip"
+            opatch: "{{ nfs_mount_point }}/oracode/19c/p6880880_190000_Linux-zSer.zip"
+            ru: "{{ nfs_mount_point }}/oracode/19c/35037840"
           disk: 
             type: dasd                                                # only dasd is supported for now, only used when asm is true
             fs_type: xfs                                              # desired filesystem type for device, only used when asm is true

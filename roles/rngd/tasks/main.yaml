@@ -10,15 +10,15 @@
   tags: rngd, service
   ansible.builtin.service:
     name: rngd
-    state: present
+    state: started
     enabled: yes
 
 - name: Change to recommended random number methodology.
   tags: rngd, service
   ansible.builtin.lineinfile:
-    path: /etc/systemd/system/rngd.service
+    path: /lib/systemd/system/rngd.service
     line: "ExecStart=/sbin/rngd -f --fill-watermark=0 --rng-device /dev/prandom"
-    replace: "ExecStart="
+    search_string: "ExecStart="
   notify: Restart rngd
 
 - name: Verify system has the required amount of entropy >1000.
@@ -26,3 +26,4 @@
   ansible.builtin.command: "cat /proc/sys/kernel/random/entropy_avail"
   register: entropy_check
   failed_when: entropy_check.stdout | int < 1000
+  changed_when: false

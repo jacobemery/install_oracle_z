@@ -1,57 +1,10 @@
 ---
-#- hosts: localhost
-#  tags: ssh, ssh_copy_id
-#  tasks:
-#    - name: Copy SSH key to access db servers.
-#      include_role:
-#        name: ssh_copy_id
-#      loop: "{{ groups['dbservers'] }}"
-#      when: hostvars[host].ansible_host is defined
-#      loop_control:
-#        loop_var: host
-
 - name: Configure server - Oracle DB install.
-  hosts: dbservers
+  hosts: db_servers
   vars:
-    v_maj: "{{ oracle_version | split('.') | first | string }}"
-    v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
-  roles:
-    - rngd
-    - vnc
-
-  post_tasks:
-    - name: Set transparent_hugepage to never with grubby.
-      tags: grubby
-      ansible.builtin.command: "grubby --update-kernel=ALL --args='transparent_hugepage=never'"
-
-    - name: Verify changes with zipl.
-      tags: zipl
-      ansible.builtin.command: "zipl -V"
-      register: zipl
-      changed_when: false
-
-    - name: Print zipl output from previous task.
-      tags: zipl
-      debug:
-        var: zipl.stdout_lines
-
-    # - name: Stop firewall.
-    #   tags: firewall
-    #   ansible.builtin.service:
-    #     name: firewalld
-    #     state: stopped
-
-    # - name: Disable firewall.
-    #   tags: firewall
-    #   ansible.builtin.service:
-    #     name: firewalld
-    #     enabled: false
-
-    - name: Add FQDN to /etc/hosts.
-      tags: hostname
-      ansible.builtin.lineinfile:
-        path: /etc/hosts
-        line: "{{ ansible_default_ipv4.address }} {{ ansible_fqdn }} {{ ansible_hostname }}"
+    v_maj: "{{ oracle.version | split('.') | first | string }}"
+    v_maj_min: "{{ oracle.version.split('.')[:2] | join('.') | string }}"
+  pre_tasks:
 
     - name: Create groups.
       tags: user_mgmt, groups
@@ -62,26 +15,57 @@
         - { group: oinstall, gid: 1000 }
         - { group: dba, gid: 1001 }
         - { group: oper, gid: 1002 }
-
-    - name: Create groups for ASM.
-      tags: user_mgmt, groups, asm
-      ansible.builtin.group:
-        name: "{{ item.group }}"
-        gid: "{{ item.gid }}"
-      loop:
-        - { group: asmdba, gid: 1003 }
-        - { group: asmoper, gid: 1004 }
-      when: asm.setup
-
+  
     - name: Create oracle user and add to groups.
       tags: user_mgmt, groups, users
       ansible.builtin.user:
         name: "{{ oracle.user }}"
-        password: "{{ lookup('pipe', 'echo {{ oracle.pass }} | openssl passwd -6 -stdin') }}" 
+        password: "{{ oracle.pass | password_hash('sha512') }}"
         uid: 1000
-        groups: "{{ ('oinstall,dba,oper') + (',asmdba,asmoper,asmadmin' if asm.setup == True else '') }}"
-        append: true
+        groups: "{{ item.groups }}"
+        append: "{{ item.append }}"
         update_password: on_create
+      loop:
+        - { groups: "oinstall", append: false }
+        - { groups: "dba,oper", append: true }
+
+  roles:
+    - rngd
+    - vnc
+
+  post_tasks:
+    - name: Check transparent_hugepage setting.
+      tags: grubby
+      ansible.builtin.command: "cat /proc/cmdline"
+      register: proc_cmdline
+      changed_when: false
+
+    - name: Set transparent_hugepage to never with grubby.
+      tags: grubby
+      ansible.builtin.command: "grubby --update-kernel=ALL --args='transparent_hugepage=never'"
+      when: "'transparent_hugepage=never' not in proc_cmdline.stdout"
+
+    - name: Verify changes with zipl.
+      tags: zipl
+      ansible.builtin.command: "zipl -V"
+      register: zipl
+      changed_when: false
+
+    - name: Print zipl output from previous task for debugging and verification.
+      tags: zipl
+      debug:
+        var: zipl.stdout_lines
+
+    - name: Set correct hostname.
+      tags: hostname
+      ansible.builtin.hostname:
+        name: "{{ ansible_hostname }}"
+
+    - name: Add FQDN to /etc/hosts.
+      tags: hostname
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ ansible_default_ipv4.address }} {{ ansible_fqdn }} {{ ansible_hostname }}"
 
     - name: Create directories.
       tags: user_mgmt, users, dir
@@ -95,7 +79,7 @@
       loop: 
         - "{{ oracle.home }}"
         - "{{ oracle.base }}"
-        - "{{  oracle.inventory }}"
+        - "{{ oracle.inventory }}"
 
     - name: Set oracle inventory.
       tags: user_mgmt, users, dir
@@ -106,23 +90,6 @@
         block: |
           inventory_loc={{ oracle.inventory }}
           inst_group=oinstall
-
-    - name: Create directories for ASM.
-      tags: user_mgmt, users, dir
-      ansible.builtin.file:
-        path: "{{ asm.grid_home }}"
-        state: directory
-        owner: "{{ oracle.user }}"
-        group: oinstall
-        mode: '0775'
-        recurse: true
-      when: asm.setup
-    
-    - name: Install pre-installation check RPM.
-      tags: rpm
-      ansible.builtin.dnf:
-        name: "{{ oracle.rpm.ora-val }}"
-        disable_gpg_check: true
 
     - name: Add limits to /etc/security/limits.conf for Oracle DB.
       tags: limits
@@ -165,10 +132,11 @@
         - { key: net.core.wmem_max, value: 1048576, reload: no }
         - { key: vm.hugetlb_shm_group, value: 1000, reload: yes }
 
-    - name: Add info to oracle user's .bash_profile.
+    - name: Add info to oracle user and root .bash_profile.
       tags: user_mgmt, users
       ansible.builtin.blockinfile:
-        path: "/home/{{ oracle.user }}/.bash_profile"
+        path: "{{ item }}/.bash_profile"
+        create: true
         block: | 
           # User specific environment and startup programs
           umask 022
@@ -177,19 +145,13 @@
           ulimit -s  10240   
           #defaults for shell startup for ulimits of {{ oracle.user }} user
           export ORACLE_BASE={{ oracle.base }}
-          {{ 'export ORACLE_HOME=' + oracle.home if asm.setup == False else 'export ORACLE_HOME=' + asm.grid_home }}
-          {{ 'export GRID_HOME=' + asm.grid_home if asm.setup == True }}
+          export ORACLE_HOME={{ oracle.home }}
           export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/OPatch:$PATH:.
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
           export CV_ASSUME_DISTID=RHEL{{ ansible_distribution_version }}
+      loop:
+        - "/home/{{ oracle.user }}"
+        - /root
 
-    - name: Setup Automatic Storage Manager (ASM).
-      tags: pre, asm
-      include_role:
-        name: asm
-        tasks_from: "{{ item }}.yaml"
-      loop: 
-        - pre
-        - "{{ asm.disk.type }}"
-        - post
-      when: asm.setup
+  handlers:
+    - include_tasks: handlers/main.yaml

@@ -1,0 +1,37 @@
+responseFileVersion=/oracle/assistants/rspfmt_dbca_response_schema_v12.2.0
+gdbName={{ oracle.db.unique_name }}
+sid={{ oracle.db.unique_name }}
+databaseConfigType=SI
+policyManaged=false
+createServerPool=false
+force=false
+createAsContainerDatabase=false
+numberOfPDBs=0
+pdbName=
+useLocalUndoForPDBs=
+pdbAdminPassword=
+templateName={{ oracle.home }}/assistants/dbca/templates/General_Purpose.dbc
+sysPassword={{ oracle.db.sys_pass }}
+systemPassword={{ oracle.db.system_pass }}
+emConfiguration=DBEXPRESS
+emExpressPort=5500
+runCVUChecks=FALSE
+omsPort=0
+dvConfiguration=false
+olsConfiguration=false
+datafileJarLocation={{oracle.home}}/assistants/dbca/templates/
+datafileDestination={{ '+DATA' if asm.setup else oracle.base + '/oradata/' + oracle.db.unique_name }}
+recoveryAreaDestination={{ '+DATA' if asm.setup else oracle.base + '/fast_recovery_area/' + oracle.db.unique_name }}
+storageType={{ 'ASM' if asm.setup else 'FS' }}
+characterSet=AL32UTF8
+nationalCharacterSet=AL16UTF16
+registerWithDirService=false
+listeners=LISTENER
+variables=ORACLE_BASE_HOME={{ oracle.home }},DB_UNIQUE_NAME={{ oracle.db.unique_name }},ORACLE_BASE={{ oracle.base }},PDB_NAME=,DB_NAME={{ oracle.db.unique_name }},oracle.home={{ oracle.home }},SID={{ oracle.db.unique_name }}
+initParams=undo_tablespace=UNDOTBS1,sga_target=2550MB,db_block_size=8192BYTES,nls_language=AMERICAN,dispatchers=(PROTOCOL=TCP) (SERVICE=ORCLCDBXDB),diagnostic_dest={{ oracle.base }},control_files=({{ '+DATA/' + oracle.db.unique_name + '/control01.ctl' if asm.setup else oracle.base + '/oradata/' + oracle.db.unique_name + '/control01.ctl' }}),remote_login_passwordfile=EXCLUSIVE,audit_file_dest={{ oracle.base }}/admin/{{ oracle.db.unique_name }}/adump,processes=500,pga_aggregate_target=850MB,nls_territory=AMERICA,local_listener="(ADDRESS=(PROTOCOL=TCP)(HOST={{ ansible_fqdn }})(PORT=1521))",db_recovery_file_dest_size=50GB,open_cursors=300,log_archive_format=%t_%s_%r.dbf,compatible=19.0.0,db_name={{ oracle.db.unique_name }},db_recovery_file_dest={{ '+DATA' if asm.setup else oracle.base + '/fast_recovery_area/' + oracle.db.unique_name }},audit_trail=none
+sampleSchema=false
+memoryPercentage=40
+databaseType=MULTIPURPOSE
+automaticMemoryManagement=false
+totalMemory=0
+redoLogFileSize=1024
