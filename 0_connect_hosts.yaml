@@ -27,7 +27,7 @@
         tags: ssh_copy_id, known_hosts
         ansible.builtin.lineinfile:
           path: ~/.ssh/known_hosts
-          search_string: "{{ inventory_hostname }}"
+          regexp: "{{ inventory_hostname }}"
           state: absent
         delegate_to: localhost
 
