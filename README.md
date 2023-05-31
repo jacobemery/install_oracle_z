@@ -2,7 +2,7 @@
 Ansible-automated install of Oracle Database and Oracle Automatic Storage Management (ASM) on Red Hat Enterprise Linux (RHEL) for IBM zSystems.
 
 # Description:
-This playbook automates the configuration of servers for Oracle Database installation. It performs tasks such as installing necessary dependencies, creating required user groups and users, setting up directories, and applying essential system configurations. Additionally, it includes optional tasks for Oracle Automatic Storage Management (ASM) setup and configuration, such as DASD setup and post-installation verifications. The playbook streamlines the process of preparing servers for Oracle Database deployment while ensuring all prerequisites are met.
+This playbook automates the configuration of servers for Oracle Database installation. It performs tasks such as installing necessary dependencies, creating required user groups and users, setting up directories, applying essential system configurations, installing Oracle Database and creating an instance. Additionally, it includes optional tasks for Oracle Automatic Storage Management (ASM) setup and configuration, such as DASD setup and post-installation verifications. The playbook streamlines the process of preparing servers for Oracle Database deployment while ensuring all prerequisites are met.
 
 ## Pre-requisites:
 - Root shell to RHEL>=v8 on IBM zSystems.
@@ -10,10 +10,10 @@ This playbook automates the configuration of servers for Oracle Database install
 - Minumum of 2GB RAM and 10GB (+16GB if using ASM) of disk space.
 
 ## Instructions:
-From your RHEL server as root, complete the following steps:
+Complete the following steps to setup your Ansible Controller, which will manage your database servers. Written and tested for RHEL server:
 ### 1. Install git
 ```
-dnf install git
+sudo dnf install git
 ```
 ### 2. Clone this repository
 ```
@@ -25,12 +25,12 @@ cd oracle_install
 ```
 ### 4. Set variables
   - Ensure all variables in `inventory.yaml` are correct for your environment.
-  - Double-check `rpm_dir` - this must be the absolute path to where your Oracle install RPMs are stored.
-  - Double-check `disk.path` - this must be the absolute path of the disk to be used for ASM, which is optional (with the `asm` variable).
+  - Add IP addresses / fully-qualified domain names to inventory for each DB server to be setup. Can add as many as you'd like.
+  - Double-check `asm_disk_ccw` if using ASM. This must be the Channel Command Word of the disk to be used for ASM.
 ```
 vi inventory.yaml
 ```
-  - Set Oracle DB server(s) root password and oracle user's passwords in vault.yaml where there are `#X`s.
+  - Set passwords in vault.yaml where there are `#X`s.
 ```
 vi group_vars/db_servers/vault.yaml
 ```
@@ -45,11 +45,15 @@ echo 'vault-password' > .password.txt && chmod 600 .password.txt
 ansible-vault encrypt group_vars/db_servers/vault.yaml
 ```
 - For more on using Ansible Vault, see the [official documentation](https://docs.ansible.com/ansible/2.8/user_guide/vault.html).
-### 6. Run the setup script
+### 6. Run the setup script (for RHEL server):
 ```
 ./setup.sh
 ```
 ### 7. Run the playbooks.
+If you do not already have SSH connection setup from your Ansible Controller to DB servers (or to test/remedy connection):
+```
+ansible-playbook 0_connect_hosts.yaml
+```
 Setup server for Oracle software:
 ```
 ansible-playbook 1_oracle_prep.yaml
