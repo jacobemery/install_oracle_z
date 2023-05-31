@@ -31,15 +31,15 @@
           state: absent
         delegate_to: localhost
 
-      - name: Copy SSH key to hosts in inventory.
-        tags: ssh_copy_id
-        ansible.builtin.expect:
-          command: "ssh-copy-id -o StrictHostKeyChecking=no -i {{ ansible_ssh_private_key_file }} {{ ansible_user }}@{{ inventory_hostname }}"
-          responses:
-            "password:": "{{ ansible_become_password }}"
-        register: copy_id
-        changed_when: copy_id.rc == 0
-        delegate_to: localhost
+#       - name: Copy SSH key to hosts in inventory.
+#         tags: ssh_copy_id
+#         ansible.builtin.expect:
+#           command: "ssh-copy-id -o StrictHostKeyChecking=no -i {{ ansible_ssh_private_key_file }} {{ ansible_user }}@{{ inventory_hostname }}"
+#           responses:
+#             "password:": "{{ ansible_become_password }}"
+#         register: copy_id
+#         changed_when: copy_id.rc == 0
+#         delegate_to: localhost
 
       - name: Pinging hosts to test connection.
         tags: ping
