@@ -57,7 +57,7 @@ oracle.install.responseFileVersion=/oracle/install/rspfmt_crsinstall_response_sc
 # This is an optional parameter if installing on  
 # Windows based Operating System.
 #-------------------------------------------------------------------------------
-INVENTORY_LOCATION={{ oracle.inventory }}
+INVENTORY_LOCATION={{ oracle_inventory }}
 
 #-------------------------------------------------------------------------------
 # Specify the installation option.
@@ -72,12 +72,12 @@ INVENTORY_LOCATION={{ oracle.inventory }}
 #   - CRS_ADDNODE : To add more nodes to the cluster
 #   - CRS_DELETE_NODE : To delete nodes to the cluster
 #-------------------------------------------------------------------------------
-oracle.install.option={{ asm.option }}
+oracle.install.option={{ grid_option }}
 
 #-------------------------------------------------------------------------------
 # Specify the complete path of the Oracle Base.
 #-------------------------------------------------------------------------------
-ORACLE_BASE={{ oracle.base }}
+ORACLE_BASE={{ oracle_base }}
 
 ################################################################################
 #                                                                              #
@@ -108,7 +108,7 @@ oracle.install.asm.OSOPER=asmoper
 # The OSASM_GROUP is the OS group which is to be granted SYSASM privileges. This
 # must be different than the previous two.
 #-------------------------------------------------------------------------------
-oracle.install.asm.OSASM=oinstall
+oracle.install.asm.OSASM=asmadmin
 
 ################################################################################
 #                                                                              #
@@ -325,7 +325,7 @@ oracle.install.crs.config.sharedFileSystemStorage.ocrLocations=
 #-------------------------------------------------------------------------------
 # Password for SYS user of Oracle ASM
 #-------------------------------------------------------------------------------
-oracle.install.asm.SYSASMPassword={{ asm.sys_pass }}
+oracle.install.asm.SYSASMPassword={{ grid_sys_pass }}
 
 #-------------------------------------------------------------------------------
 # The ASM DiskGroup
@@ -380,7 +380,7 @@ oracle.install.asm.diskGroup.FailureGroups=
 #     oracle.install.asm.diskGroup.disksWithFailureGroupNames=\\.\ORCLDISKDATA0,FGName,\\.\ORCLDISKDATA1,FGName
 #
 #-------------------------------------------------------------------------------
-oracle.install.asm.diskGroup.disksWithFailureGroupNames=/dev/oracleasm/asm{{ ccw_num }},
+oracle.install.asm.diskGroup.disksWithFailureGroupNames=
 
 #-------------------------------------------------------------------------------
 # List of disks to create a ASM DiskGroup
@@ -392,7 +392,7 @@ oracle.install.asm.diskGroup.disksWithFailureGroupNames=/dev/oracleasm/asm{{ ccw
 #     oracle.install.asm.diskGroup.disks=\\.\ORCLDISKDATA0,\\.\ORCLDISKDATA1
 #
 #-------------------------------------------------------------------------------
-oracle.install.asm.diskGroup.disks=/dev/oracleasm/asm{{ ccw_num }}
+oracle.install.asm.diskGroup.disks=/dev/oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }}
 
 #-------------------------------------------------------------------------------
 # List of failure groups to be marked as QUORUM.
@@ -411,13 +411,13 @@ oracle.install.asm.diskGroup.quorumFailureGroupNames=
 #     oracle.install.asm.diskGroup.diskDiscoveryString=\\.\ORCLDISK*
 #
 #-------------------------------------------------------------------------------
-oracle.install.asm.diskGroup.diskDiscoveryString=/dev/oracleasm/asm*
+oracle.install.asm.diskGroup.diskDiscoveryString=/dev/oracleasm/*
 
 #-------------------------------------------------------------------------------
 # Password for ASMSNMP account
 # ASMSNMP account is used by Oracle Enterprise Manager to monitor Oracle ASM instances
 #-------------------------------------------------------------------------------
-oracle.install.asm.monitorPassword={{ asm.monitor_pass }}
+oracle.install.asm.monitorPassword={{ grid_mon_pass }}
 
 #-------------------------------------------------------------------------------
 # GIMR Storage data ASM DiskGroup
@@ -438,7 +438,7 @@ oracle.install.asm.gimrDG.name=
 # Example: oracle.install.asm.gimrDG.redundancy=NORMAL
 #
 #-------------------------------------------------------------------------------
-oracle.install.asm.gimrDG.redundancy=
+oracle.install.asm.gimrDG.redundancy=EXTERNAL
 
 #-------------------------------------------------------------------------------
 # Allocation unit size to be used by ASM.

@@ -1,0 +1,41 @@
+---
+
+- name: Checking status of database instance creation.
+  tags: install, db, dbca
+  ansible.builtin.async_status:
+    jid: "{{ dbca_jid }}"
+  register: dbca_check
+
+- name: Gather ansible_date_time.time fact for timestamp.
+  tags: install, db, dbca
+  ansible.builtin.setup:
+    gather_subset: [date_time]
+
+- name: Get latest updates from log file for status on Oracle database creation process.
+  tags: install, db, dbca
+  ansible.builtin.command: "tail -n 5 {{ oracle_base }}/cfgtoollogs/dbca/{{ db_unique_name }}/{{ db_unique_name }}.log"
+  changed_when: false
+  register: dbca_log
+
+- name: Print dbca status.
+  tags: install, db, dbca
+  ansible.builtin.debug:
+    msg: | 
+      INFO: {{ ansible_date_time.time }} - {{ db_unique_name }} creation status:
+      {{ dbca_log.stdout_lines | to_nice_yaml }}
+
+- name: Determine whether the status check needs to run again or not.
+  tags: install, db, dbca
+  ansible.builtin.set_fact:
+    re_run: "{{ False if dbca_check.finished else True }}"
+
+- name: Wait 1 minute before re-running status check, if dbca is not finished yet.
+  tags: install, db, dbca
+  ansible.builtin.pause:
+    minutes: 1
+    
+- name: Re-run status check if dbca process is not finished.
+  tags: install, db, dbca
+  ansible.builtin.include_tasks: 
+    file: tasks/check_dbca_status.yaml
+  when: re_run

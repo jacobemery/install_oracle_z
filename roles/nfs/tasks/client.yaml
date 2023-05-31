@@ -10,7 +10,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: '755'
 
 - name: Mount the NFS share
   ansible.posix.mount:

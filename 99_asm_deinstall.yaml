@@ -1,85 +1,38 @@
-# Work in progress.
-
+# Work in Progress!
 ---
 - name: Deinstall Oracle Automatic Storage Manager (ASM).
   hosts: db_servers
   tasks:
 
-    - name: Stop ohasd
-      tags: ohasd
-      ansible.builtin.command: "{{ item }}"
-      loop:
-        - "/etc/init.d/ohas stop"
-        - "kill $(ps aux | grep '[o]hasd' | awk '{print $2}')"
-
-#WIP
-    # - name: Deinstall Grid.
-    #   tags: grid, deinstall
-    #   ansible.builtin.expect:
-    #     command: "{{ asm.grid_home }}/deinstall/deinstall"
-    #     responses:
-    #       - 
-    #       - 
-    #       - 
-    #       -
-    #   async:
-    #     poll: 0
-
-    # - name: Run additional deinstall script.
-    #   tags: grid, deinstall
-    #   ansible.builtin.command: ""
-
-    - name: Ensure grid home and Oracle base directories are deleted.
-      tags: grid, file
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "{{ asm.grid_home }}"
-        - "{{ oracle.base }}"
-
-    - name: Remove ohasd from inittab.
-      tags: ohasd
-      ansible.builtin.lineinfile:
-        path: /etc/inittab
-        line: "h1:3:respawn:/sbin/init.d/init.ohasd run >/dev/null 2>&1 </dev/null"
-        state: absent
+    - name: Deinstall Grid.
+      tags: grid, deinstall
+      become: true
+      become_user: "{{ grid_user }}"
+      ansible.builtin.expect:
+        command: "{{ grid_home }}/deinstall/deinstall"
+        echo: true
+        responses:
+          Questions:
+          - Specify a comma-separated list of remote nodes to cleanup: "{{ ansible_hostname }}"
+          - ASM configuration was not detected in this Oracle home. Was ASM configured in this Oracle home (y|n) [n]: 'y'
+          - If you want to retain the existing diskgroups or if any of the information detected is incorrect, you can modify by entering 'y'. Do you  want to modify above information (y|n) [n]: 'n'
+          - Do you want to continue (y - yes, n - no)? [n]: 'y'
+      register: deinstall
+      #failed_when: "'Oracle Universal Installer cleanup was successful.' not in deinstall.stdout"
 
     - name: Remove files.
       tags: file
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ grid_home }}"
         state: absent
-      loop:
-        - /etc/oracle
-        - /var/tmp/.oracle
-        - /tmp/.oracle
-        - /var/opt/oracle
 
-    - name: Delete ohasd rc*.d files.
-      tags: ohasd
-      ansible.builtin.shell: "find /etc/rc*.d -name *ohasd -exec rm {} \;"
-
-    - name: Get channel command word (ccw) value from lsdasd for use in next task.
-      tags: install, asm
-      ansible.builtin.shell: "lsdasd | grep {{ asm.disk.path.split('/')[-1] }} | awk '{print $1}'"
-      register: ccw
-      changed_when: false
-      when: asm.disk.type == 'dasd'
+    # - name: Get channel command word (ccw) value from lsdasd for use in next task.
+    #   tags: install, asm
+    #   ansible.builtin.shell: "lsdasd | grep {{ asm_disk_path.split('/')[-1] }} | awk '{print $1}'"
+    #   register: ccw
+    #   changed_when: false
+    #   when: asm_disk_type == 'dasd'
 
     - name: Zero out oracleasm disk.
       tags: disk
-      vars:
-        ccw_num: "{{ ccw.stdout.split('.')[-1] }}"
-      ansible.builtin.command: "dd if=/dev/zero of=/dev/oracleasm/asm{{ ccw_num }} bs=1024k count=100"
-
-    - name: Delete more files.
-      tags: file
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - /etc/oratab
-        - /usr/local/bin/dbhome
-        - /usr/local/bin/coraenv
-        - /usr/local/bin/oraenv
+      ansible.builtin.command: "dd if=/dev/zero of=/dev/oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }} bs=1024k count=100"

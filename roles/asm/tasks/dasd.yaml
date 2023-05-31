@@ -1,46 +1,68 @@
 ---
+
+# - name: Zero out oracleasm disk.
+#   tags: dasd, asm
+#   ansible.builtin.command: "dd if=/dev/zero of={{ asm_disk_path }}-part1 bs=1M count=100"
+
 - name: Check if target disk is alredy formatted to avoid accidential loss of data.
   tags: dasd, asm
-  ansible.builtin.shell: "dasdview -x {{ asm.disk.path }} | grep 'format  ' | awk '{print $8}'"
+  ansible.builtin.shell: "dasdview -x /dev/disk/by-path/ccw-{{ asm_disk_ccw }} | grep 'format  ' | awk '{print $8}'"
   register: formatted_check
   changed_when: false
 
 - name: Format disk, if using DASD for ASM and disk is not already formatted.
   tags: dasd, asm
-  ansible.builtin.command: "dasdfmt -vpyb 4096 {{ asm.disk.path }}"
+  ansible.builtin.command: "dasdfmt -vpyb 4096 /dev/disk/by-path/ccw-{{ asm_disk_ccw }}"
   when: "'Not formatted' in formatted_check.stdout"
 
 - name: Check if target disk is already partitioned to avoid accidental loss of data.
   tags: dasd, asm
-  ansible.builtin.shell: "lsblk -lno NAME {{ asm.disk.path }} | wc -l"
+  ansible.builtin.shell: "lsblk -lno NAME /dev/disk/by-path/ccw-{{ asm_disk_ccw }} | wc -l"
   register: part_check
   changed_when: false
 
 - name: Create partition on dasd.
   tags: dasd, asm
-  ansible.builtin.command: "fdasd {{ asm.disk.path }} -a"
+  ansible.builtin.command: "fdasd -a /dev/disk/by-path/ccw-{{ asm_disk_ccw }}"
   when: part_check.stdout | int - 1 == 0
 
-- name: Make filesystem on partitioned dasd.
-  tags: dasd, asm
-  ansible.builtin.filesystem:
-    dev: "{{ asm.disk.path }}1"
-    fstype: "{{ asm.disk.fs_type }}"
-    resizefs: true
-    force: yes
-  when: "asm.disk.path ~ '1' not in ansible_mounts | map(attribute='device') | list"
+# - name: Get channel command word (ccw) value from lsdasd.
+#   tags: dasd, asm
+#   ansible.builtin.shell: "lsdasd | grep {{ asm_disk_path.split('/')[-1] }} | awk '{print $1}'"
+#   register: ccw
+#   changed_when: false
 
-- name: Get channel command word (ccw) value from lsdasd for use in next task.
-  tags: dasd, asm
-  ansible.builtin.shell: "lsdasd | grep {{ asm.disk.path.split('/')[-1] }} | awk '{print $1}'"
-  register: ccw
-  changed_when: false
+# - name: Set ccw_num fact based on output from previous task.
+#   tags: dasd, asm
+#   ansible.builtin.set_fact:
+#     ccw_num: "{{ ccw.stdout.split('.')[-1] }}"
 
 - name: Setup disks for ASM.
   tags: dasd, asm
-  vars:
-    ccw_num: "{{ ccw.stdout.split('.')[-1] }}"
   ansible.builtin.lineinfile:
-    line: 'KERNEL=="dasd*1", SUBSYSTEM=="block", ENV{ID_PATH}=="ccw-{{ ccw.stdout }}", SYMLINK+="oracleasm/asm{{ ccw_num }}", GROUP="oinstall", OWNER="{{ asm.grid_user }}", MODE="0660"'
+    line: SUBSYSTEM=="block", ENV{ID_PATH}=="ccw-{{ asm_disk_ccw }}", SYMLINK+="oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }}", GROUP="oinstall", OWNER="{{ grid_user }}", MODE="0660"
     path: /etc/udev/rules.d/99-udev-oracle.rules
+    search_string: "SUBSYSTEM=="
     create: true
+  register: udev_rules
+
+- name: Reload udevadm.
+  tags: dasd, asm
+  ansible.builtin.shell: 
+    cmd: "udevadm control --reload-rules"
+  when: udev_rules.changed
+
+- name: Trigger udev changes.
+  tags: dasd, asm
+  ansible.builtin.shell:
+    cmd: "udevadm trigger --action=change"
+    creates: "/dev/oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }}"
+  when: udev_rules.changed
+
+- name: Ensure disks have proper permissions.
+  tags: dasd, asm
+  ansible.builtin.file:
+    path: "/dev/disk/by-path/ccw-{{ asm_disk_ccw }}"
+    owner: "{{ grid_user }}"
+    group: oinstall
+    mode: '660'

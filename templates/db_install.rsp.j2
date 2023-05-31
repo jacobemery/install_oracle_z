@@ -38,16 +38,16 @@ UNIX_GROUP_NAME=oinstall
 # This is an optional parameter if installing on
 # Windows based Operating System.
 #-------------------------------------------------------------------------------
-INVENTORY_LOCATION={{ oracle.inventory }}
+INVENTORY_LOCATION={{ oracle_inventory }}
 #-------------------------------------------------------------------------------
 # Specify the complete path of the Oracle Home. 
 #-------------------------------------------------------------------------------
-ORACLE_HOME={{ oracle.home }}
+ORACLE_HOME={{ oracle_home }}
 
 #-------------------------------------------------------------------------------
 # Specify the complete path of the Oracle Base. 
 #-------------------------------------------------------------------------------
-ORACLE_BASE={{ oracle.base }}
+ORACLE_BASE={{ oracle_base }}
 
 #-------------------------------------------------------------------------------
 # Specify the installation edition of the component.                     
@@ -59,7 +59,7 @@ ORACLE_BASE={{ oracle.base }}
 
 #-------------------------------------------------------------------------------
 
-oracle.install.db.InstallEdition={{ oracle.install_edition }}
+oracle.install.db.InstallEdition={{ db_install_edition }}
 ###############################################################################
 #                                                                             #
 # PRIVILEGED OPERATING SYSTEM GROUPS                                          #
@@ -324,7 +324,7 @@ oracle.install.db.config.starterdb.enableRecovery=
 #   - FILE_SYSTEM_STORAGE
 #   - ASM_STORAGE
 #-------------------------------------------------------------------------------
-oracle.install.db.config.starterdb.storageType={{ 'ASM_STORAGE' if asm.setup else 'FILE_SYSTEM_STORAGE' }}
+oracle.install.db.config.starterdb.storageType={{ 'ASM_STORAGE' if asm_setup else 'FILE_SYSTEM_STORAGE' }}
 
 #-------------------------------------------------------------------------------
 # Specify the database file location which is a directory for datafiles, control
@@ -346,11 +346,11 @@ oracle.install.db.config.starterdb.fileSystemStorage.recoveryLocation=
 #
 # Applicable only when oracle.install.db.config.starterdb.storageType=ASM_STORAGE
 #-------------------------------------------------------------------------------
-oracle.install.db.config.asm.diskGroup={{ '+DATA' if asm.setup }}
+oracle.install.db.config.asm.diskGroup={{ '+DATA' if asm_setup }}
 
 #-------------------------------------------------------------------------------
 # Specify the password for ASMSNMP user of the ASM instance.                 
 #
 # Applicable only when oracle.install.db.config.starterdb.storage=ASM_STORAGE 
 #-------------------------------------------------------------------------------
-oracle.install.db.config.asm.ASMSNMPPassword={{ asm.monitor_pass if asm.setup }}
+oracle.install.db.config.asm.ASMSNMPPassword={{ grid_mon_pass if asm_setup }}

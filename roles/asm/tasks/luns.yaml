@@ -23,8 +23,6 @@
 
 - name: Setup disks, if using LUNs for ASM.
   tags: luns, asm
-  vars: 
-    ccw_num: "{{ ccw.stdout.split('.')[-1] | join('.') }}"
   ansible.builtin.lineinfile:
-    line: ACTION=="add|change", KERNEL=="sd*1", ENV{ID_PATH}=="{{ ccw.stdout }}", SYMLINK+="oracleasm/asm{{ ccw_num }}", GROUP="oinstall",  OWNER="oracle", MODE="0660"
+    line: ACTION=="add|change", KERNEL=="sd*1", ENV{ID_PATH}=="{{ asm_disk_ccw }}", SYMLINK+="oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }}", GROUP="oinstall",  OWNER="oracle", MODE="0660"
     path: /etc/udev/rules.d/99-udev-oracle.rules

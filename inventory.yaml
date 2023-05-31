@@ -2,50 +2,56 @@ all:
   children:
     db_servers:
       hosts:
-        #1.1.1.1
+        # 1.1.1.1
+        # 1.1.1.2
       vars:
-        ansible_user: root
-        ansible_become_password: "{{ vault_db_servers_root_pass }}"   # must be filled in at group_vars/db_servers/vault.yaml
-        ansible_ssh_private_key_file: #X
-        nfs_mount_point: /mnt/oraclenfs
-        oracle:
-          version: 19.0.1-1
-          home: /u01/app/oracle/19.0/dbhome
-          base: /u01/app
-          inventory: /u01/app/oraInventory
-          user: oracle
-          pass: "{{ vault_oracle_pass }}"                             # must be filled in at group_vars/db_servers/vault.yaml
-          rpm:
-            ora_val: "{{ nfs_mount_point }}/oracode/19c/ora-val-rpm-RH8-DB-19c-19.0.1-1.s390x.rpm"  # absolute path or URL to the RPMs for install 
-            db: "{{ nfs_mount_point}}/oracode/19c/V982648-01_19cDB.zip"
-            ru: "{{ nfs_mount_point }}oracode/19c/35037840"
-          install_edition: EE
-          shmmax: 4294967296                                          # shared memory max kernel pararm, in bytes
-          shmni: 4096                                                 # shared memory number of identifiers kernel pararm, in megabytes
-          db:
-            unique_name: #X
-            system_pass: "{{ vault_db_system_pass }}"
-            sys_pass: "{{ vault_db_sys_pass }}"
-        asm:
-          setup: true                                                 # True or False: install Oracle Automate Storage Management
-          grid_home: /u01/app/grid/19.0/ghome
-          grid_user: oracle
-          grid_pass: "{{ vault_grid_user_pass }}"
-          sys_pass: "{{ vault_asm_sys_pass }}"
-          oms_pass: "{{ vault_asm_oms_pass }}"
-          monitor_pass: "{{ vault_asm_monitor_pass }}"
-          option: HA_CONFIG
-          swap: 
-            create: true                                              # True or False: create required swap space?
-            path: /var/tmp/swap1                                      # Absolute path to desired swap file, only used if asm.swap.create is True
-            size: 700                                                 # Size of swap file, in MB, only used if asm.swap.create is True
-          rpm:
-            cvuqdisk: "/u01/app/grid/19.0/ghome/cv/rpm/cvuqdisk-1.0.10-1.rpm"
-            grid: "{{ nfs_mount_point }}/oracode/19c/V982652-01_19cGrid.zip"
-            opatch: "{{ nfs_mount_point }}/oracode/19c/p6880880_190000_Linux-zSer.zip"
-            ru: "{{ nfs_mount_point }}/oracode/19c/35037840"
-          disk: 
-            type: dasd                                                # only dasd is supported for now, only used when asm is true
-            fs_type: xfs                                              # desired filesystem type for device, only used when asm is true
-            path: /dev/dasdc                                          # absolute path to the device, only used when asm is true
-        ntp_server: ntp.pool.org
+        ansible_user:                 root                                                                          # User to connect to DB servers as, must be root
+        ansible_become_password:      "{{ vault_db_servers_root_pass }}"                                            # Password for db_servers root user - must be filled in at group_vars/db_servers/vault.yaml
+        ansible_ssh_private_key_file: #X                                                                            # Absolute path to SSH key to use to connect to db_servers
+        
+        nfs_mount_point:              /mnt/oraclenfs                                                                # Absolute path to the mount point for all Oracle software (rpm, zip, etc.)
+        nfs_host:                     192.168.22.147                                                                # IP or hostname of NFS server
+        nfs_shared_dir:               /lxor6                                                                        # Absolute path to the shared directory on the NFS server.
+        nfs_opts:                     ro,intr,soft,timeo=300,vers=3                                                 # Options for NFS mount
+        
+        oracle_version:               19.0.1-1                                                                      # Version of Oracle Database to be installed
+        oracle_home:                  /u01/app/oracle/19.0/dbhome                                                   # Absolute path to ORACLE_HOME
+        oracle_base:                  /u01/app                                                                      # Absolute path to ORACLE_BASE
+        oracle_inventory:             /u01/inventory                                                                # Absolute path to ORACLE_INVENTORY
+        oracle_user:                  oracle                                                                        # Name of Oracle user
+        oracle_pass:                  "{{ vault_oracle_pass }}"                                                     # Password for Oracle user - must be filled in at group_vars/db_servers/vault.yaml
+        ora_val:                      "{{ nfs_mount_point }}/oracode/19c/ora-val-rpm-RH8-DB-19c-19.0.1-1.s390x.rpm" # Absolute path to ora-val RPM
+
+        db_zip:                       "{{ nfs_mount_point }}/oracode/19c/V982648-01_19cDB.zip"                      # Absolute path to Oracle DB zip file
+        db_opatch_zip:                "{{ nfs_mount_point }}/oracode/19c/p6880880_190000_Linux-zSer.zip"            # Absolute path to Oracle OPatch zip file
+        db_ru:                        "{{ nfs_mount_point }}/oracode/19c/35037840"                                  # Absolute path to the Release Update directory to be applied on install of Oracle DB
+        db_install_edition:           EE                                                                            # Oracle Database install edition, either EE or SE2
+        db_unique_name:               #X                                                                            # Unique name of Oracle Database to be created
+        db_system_pass:               "{{ vault_db_system_pass }}"                                                  # System password for Oracle Database
+        db_sys_pass:                  "{{ vault_db_sys_pass }}"                                                     # Sys password for Oracle Database
+        db_fra_size:                  5                                                                             # Size in gigabytes, of the Fast Recovery Area (FRA) for the database. Recommended 3x the size of db.
+        
+        asm_setup:                    True                                                                          # True or False: install Oracle Automate Storage Management (ASM)?
+        asm_disk_type:                dasd                                                                          # Type of disk to be used for ASM - only 'dasd' is supported for now, only used when asm_setup is true
+        asm_disk_fstype:              xfs                                                                           # Desired filesystem type for ASM storage device, only used when asm_setup is true
+        #asm_disk_path:               /dev/disk/by-path/ccw-0.0.0702                                                # Absolute path to the ASM storage device, only used when asm_setup is true
+        asm_disk_ccw:                 0.0.0702                                                                      # Channel Command Word for disk to be used for ASM.
+
+        grid_home:                    /u01/app/grid/19.0/ghome                                                      # Absolute path to the Grid Infrastructure (GI) home (GRID_HOME), only used when asm_setup is true
+        grid_user:                    oracle                                                                        # Name of GI user
+        grid_pass:                    "{{ vault_grid_user_pass }}"                                                  # Password for GI user
+        grid_sys_pass:                "{{ vault_asm_sys_pass }}"                                                    # Password for GI sys account
+        grid_mon_pass:                "{{ vault_asm_mon_pass }}"                                                    # Password for GI monitor account
+        grid_option:                  HA_CONFIG                                                                     # GI install option, only HA_CONFIG is supported as of now. To use other options (i.e. CRS_CONFIG, UPGRADE, CRS_SWONLY, HA_SWONLY), please see asm/templates/grid_install.rsp.j2 for manual configuration
+        grid_cvuqdisk_rpm:            "/u01/app/grid/19.0/ghome/cv/rpm/cvuqdisk-1.0.10-1.rpm"                       # Absolute path to the cvuqdisk RPM
+        grid_zip:                     "{{ nfs_mount_point }}/oracode/19c/V982652-01_19cGrid.zip"                    # Absolute path to the Grid home zip file
+        grid_opatch_zip:              "{{ nfs_mount_point }}/oracode/19c/p6880880_190000_Linux-zSer.zip"            # Absolute path to the OPatch zip file to apply to GI
+        grid_ru:                      "{{ nfs_mount_point }}/oracode/19c/35037840"                                  # Absolute path to the Release Update to apply to GI
+        
+        swap_create:                  False                                                                         # True or False: create required swap space?
+        swap_path:                    /var/tmp/swap1                                                                # Absolute path to desired swap file, only used if swap_create and swap_create are True
+        swap_size:                    700                                                                           # Size of swap file, in MB, only used if swap_create and swap_create are True
+        
+        ntp_server:                   ntp.pool.org                                                                  # NTP server to synchronize time
+        kernel_shmmax:                4294967296                                                                    # Shared memory max kernel pararm, in bytes
+        kernel_shmni:                 4096                                                                          # Shared memory number of identifiers kernel pararm, in megabytes

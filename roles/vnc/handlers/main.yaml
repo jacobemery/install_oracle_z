@@ -1,6 +1,5 @@
 ---
 
-
 - name: Reload firewall
   tags: firewalld
   systemd:

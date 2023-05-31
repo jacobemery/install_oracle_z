@@ -1,9 +1,10 @@
+# Work in Progress!
 ---
 - name: Configure server - Oracle DB install.
   hosts: db_servers
   vars:
-    v_maj: "{{ oracle.version | split('.') | first | string }}"
-    v_maj_min: "{{ oracle.version.split('.')[:2] | join('.') | string }}"
+    v_maj: "{{ oracle_version | split('.') | first | string }}"
+    v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
   pre_tasks:
 
     - name: Create groups.
@@ -19,8 +20,8 @@
     - name: Create oracle user and add to groups.
       tags: user_mgmt, groups, users
       ansible.builtin.user:
-        name: "{{ oracle.user }}"
-        password: "{{ oracle.pass | password_hash('sha512') }}"
+        name: "{{ oracle_user }}"
+        password: "{{ oracle_pass | password_hash('sha512') }}"
         uid: 1000
         groups: "{{ item.groups }}"
         append: "{{ item.append }}"
@@ -72,14 +73,14 @@
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
-        owner: "{{ oracle.user }}"
+        owner: "{{ oracle_user }}"
         group: oinstall
-        mode: '0775'
+        mode: '775'
         recurse: true
       loop: 
-        - "{{ oracle.home }}"
-        - "{{ oracle.base }}"
-        - "{{ oracle.inventory }}"
+        - "{{ oracle_home }}"
+        - "{{ oracle_base }}"
+        - "{{ oracle_inventory }}"
 
     - name: Set oracle inventory.
       tags: user_mgmt, users, dir
@@ -87,8 +88,9 @@
         path: /etc/oraInst.loc
         create: true
         backup: true
+        mode: '644'
         block: |
-          inventory_loc={{ oracle.inventory }}
+          inventory_loc={{ oracle_inventory }}
           inst_group=oinstall
 
     - name: Add limits to /etc/security/limits.conf for Oracle DB.
@@ -121,9 +123,9 @@
         - { key: vm.dirty_writeback_centisecs, value: 100, reload: no }
         - { key: fs.file-max, value: 6815744, reload: no }
         - { key: fs.aio-max-nr, value: 3145728, reload: no }
-        - { key: kernel.shmmax, value: "{{ oracle.shmmax }}", reload: no }
-        - { key: kernel.shmall, value: "{{ ( oracle.shmmax / oracle.shmni ) | int }}", reload: no }
-        - { key: kernel.shmmni, value: "{{ oracle.shmni }}", reload: no }
+        - { key: kernel.shmmax, value: "{{ kernel_shmmax }}", reload: no }
+        - { key: kernel.shmall, value: "{{ ( kernel_shmmax / kernel_shmni ) | int }}", reload: no }
+        - { key: kernel.shmmni, value: "{{ kernel_shmni }}", reload: no }
         - { key: kernel.sem, value: 250 32000 100 128, reload: no }
         - { key: net.ipv4.ip_local_port_range, value: 9000 65500, reload: no }
         - { key: net.core.rmem_default, value: 262144, reload: no }
@@ -135,7 +137,9 @@
     - name: Add info to oracle user and root .bash_profile.
       tags: user_mgmt, users
       ansible.builtin.blockinfile:
-        path: "{{ item }}/.bash_profile"
+        path: "{{ item.path }}/.bash_profile"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
         create: true
         block: | 
           # User specific environment and startup programs
@@ -143,15 +147,30 @@
           ulimit -u 16384  
           ulimit -n 65536 
           ulimit -s  10240   
-          #defaults for shell startup for ulimits of {{ oracle.user }} user
-          export ORACLE_BASE={{ oracle.base }}
-          export ORACLE_HOME={{ oracle.home }}
-          export PATH=$ORACLE_HOME/bin:$ORACLE_HOME/OPatch:$PATH:.
+          #defaults for shell startup for ulimits of {{ oracle_user }} user
+          export ORACLE_BASE={{ oracle_base }}
+          export ORACLE_HOME={{ oracle_home }}
+          {{ 'export PATH=$PATH:' + oracle_home + '/bin:' + oracle_home + '/OPatch' }}{{ ':' + grid_home + '/bin:' + grid_home + '/OPatch' if asm_setup }}
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
           export CV_ASSUME_DISTID=RHEL{{ ansible_distribution_version }}
       loop:
-        - "/home/{{ oracle.user }}"
-        - /root
+        - { path: "/home/{{ oracle_user }}", owner: "{{ oracle_user }}", group: oinstall }
+        - { path: /root, owner: root, group: root }
+    
+    - name: Ensure NFS directory is properly mounted.
+      tags: nfs
+      ansible.posix.mount:
+        path: "{{ nfs_mount_point }}"
+        src: "{{ nfs_host }}:{{ nfs_shared_dir }}"
+        opts: "{{ nfs_opts }}"
+        state: mounted
+        fstype: nfs
+
+    - name: Install Oracle validation check RPM.
+      tags: rpm, ora_val
+      ansible.builtin.dnf:
+        name: "{{ ora_val }}"
+        disable_gpg_check: true 
 
   handlers:
     - include_tasks: handlers/main.yaml
