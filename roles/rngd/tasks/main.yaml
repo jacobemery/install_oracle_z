@@ -18,7 +18,7 @@
   ansible.builtin.lineinfile:
     path: /lib/systemd/system/rngd.service
     line: "ExecStart=/sbin/rngd -f --fill-watermark=0 --rng-device /dev/prandom"
-    search_string: "ExecStart="
+    regexp: "ExecStart="
   notify: Restart rngd
 
 - name: Verify system has the required amount of entropy >1000.

@@ -42,7 +42,7 @@
   ansible.builtin.lineinfile:
     line: SUBSYSTEM=="block", ENV{ID_PATH}=="ccw-{{ asm_disk_ccw }}", SYMLINK+="oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }}", GROUP="oinstall", OWNER="{{ grid_user }}", MODE="0660"
     path: /etc/udev/rules.d/99-udev-oracle.rules
-    search_string: "SUBSYSTEM=="
+    regexp: "SUBSYSTEM=="
     create: true
   register: udev_rules
 
