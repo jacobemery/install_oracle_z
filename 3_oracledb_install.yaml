@@ -12,7 +12,7 @@
       ansible.builtin.lineinfile:
         path: "{{ item }}"
         line: "export ORACLE_HOME={{ oracle_home }}" 
-        search_string: "export ORACLE_HOME="
+        regexp: "export ORACLE_HOME="
         create: true
       loop:
         - "/home/{{ oracle_user }}/.bash_profile"

@@ -50,17 +50,17 @@
       ansible.builtin.lineinfile:
         path: "{{ item.path }}"
         line: "{{ item.line  }}"
-        search_string: "{{ item.search_string | default('none')  }}"
+        regexp: "{{ item.regexp | default('none')  }}"
         create: true
         owner: "{{ item.owner }}"
         group: "{{ item.group }}"
       loop:
-        - { path: "/home/{{ grid_user }}/.bash_profile", line: "export GRID_HOME={{ grid_home }}", search_string: 'export GRID_HOME=', owner: "{{ grid_user }}", group: oinstall }
-        - { path: "/home/{{ grid_user }}/.bash_profile", line: "{{ 'export ORACLE_HOME=' + grid_home }}", search_string: 'export ORACLE_HOME=', owner: "{{ grid_user }}", group: oinstall }
-        - { path: "/home/{{ grid_user }}/.bash_profile", line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP", search_string: "CVUQDISK_GRP", owner: "{{ grid_user }}", group: oinstall }
-        - { path: "/root/.bash_profile", line: "export GRID_HOME={{ grid_home }}", search_string: 'export GRID_HOME=', owner: root, group: root }
-        - { path: "/root/.bash_profile", line: "{{ 'export ORACLE_HOME=' + grid_home }}", search_string: 'export ORACLE_HOME=', owner: root, group: root }
-        - { path: "/root/.bash_profile", line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP", search_string: "CVUQDISK_GRP", owner: root, group: root }
+        - { path: "/home/{{ grid_user }}/.bash_profile", line: "export GRID_HOME={{ grid_home }}", regexp: 'export GRID_HOME=', owner: "{{ grid_user }}", group: oinstall }
+        - { path: "/home/{{ grid_user }}/.bash_profile", line: "{{ 'export ORACLE_HOME=' + grid_home }}", regexp: 'export ORACLE_HOME=', owner: "{{ grid_user }}", group: oinstall }
+        - { path: "/home/{{ grid_user }}/.bash_profile", line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP", regexp: "CVUQDISK_GRP", owner: "{{ grid_user }}", group: oinstall }
+        - { path: "/root/.bash_profile", line: "export GRID_HOME={{ grid_home }}", regexp: 'export GRID_HOME=', owner: root, group: root }
+        - { path: "/root/.bash_profile", line: "{{ 'export ORACLE_HOME=' + grid_home }}", regexp: 'export ORACLE_HOME=', owner: root, group: root }
+        - { path: "/root/.bash_profile", line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP", regexp: "CVUQDISK_GRP", owner: root, group: root }
       when: asm_setup
 
     - name: Ensure grid home directory exists.
@@ -120,7 +120,7 @@
         path: /etc/sysconfig/network
         backup: true
         line: "NOZEROCONF=yes"
-        search_string: "NOZEROCONF="
+        regexp: "NOZEROCONF="
       notify: Restart NetworkManager
       when: asm_setup
 
@@ -656,7 +656,7 @@
     #   ansible.builtin.lineinfile:
     #     path: "{{ item.path }}"
     #     line: "export LD_LIBRARY_PATH={{ instant_client_path.stdout }}:$LD_LIBRARY_PATH"
-    #     search_string: "LD_LIBRARY_PATH"
+    #     regexp: "LD_LIBRARY_PATH"
     #     create: true
     #     owner: "{{ item.owner }}"
     #     group: "{{ item.group }}"
