@@ -32,7 +32,7 @@ vi inventory.yaml
 ```
   - Set Oracle DB server(s) root password and oracle user's passwords in vault.yaml where there are `#X`s.
 ```
-vi group_vars/dbservers/vault.yaml
+vi group_vars/db_servers/vault.yaml
 ```
 ### 5. Setup Ansible Vault
 - Create a vault password. Make sure to replace `vault-password` with your desired password. 
@@ -42,16 +42,25 @@ echo 'vault-password' > .password.txt && chmod 600 .password.txt
 ```
 - Encrypt the vault.
 ```
-ansible-vault encrypt group_vars/dbservers/vault.yaml
+ansible-vault encrypt group_vars/db_servers/vault.yaml
 ```
 - For more on using Ansible Vault, see the [official documentation](https://docs.ansible.com/ansible/2.8/user_guide/vault.html).
 ### 6. Run the setup script
 ```
 ./setup.sh
 ```
-### 7. Run the playbook.
+### 7. Run the playbooks.
+Setup server for Oracle software:
 ```
-ansible-playbook install.yaml
+ansible-playbook 1_oracle_prep.yaml
+```
+(Optional) install Oracle Automatic Storage Manager (ASM):
+```
+ansible-playbook 2_asm_install.yaml
+```
+Install Oracle Database:
+```
+ansible-playbook 3_oracledb_install.yaml
 ```
 Alternatively, setup and run the playbook all at once. <b>Note</b>: not recommended for first-time users.
 ```

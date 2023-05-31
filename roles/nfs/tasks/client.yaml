@@ -1,0 +1,21 @@
+---
+- name: Install NFS client packages
+  ansible.builtin.package:
+    name: nfs-utils
+    state: present
+
+- name: Create the NFS mount point
+  ansible.builtin.file:
+    path: "{{ nfs_mount_point }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '755'
+
+- name: Mount the NFS share
+  ansible.posix.mount:
+    fstype: nfs
+    src: "{{ hostvars['nfs-server'].ansible_host }}:{{ hostvars['nfs-server'].export }}"
+    path: "{{ nfs_mount_point }}"
+    state: mounted
+    opts: "rw,sync,vers=3,_netdev"

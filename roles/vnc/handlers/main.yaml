@@ -1,0 +1,7 @@
+---
+
+- name: Reload firewall
+  tags: firewalld
+  systemd:
+    name: firewalld
+    state: reloaded

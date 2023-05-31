@@ -1,0 +1,6 @@
+---
+- name: Restart rngd
+  ansible.builtin.systemd:
+    name: rngd
+    state: restarted
+    daemon_reload: yes

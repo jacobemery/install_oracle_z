@@ -1,0 +1,7 @@
+vault_db_servers_root_pass: #X
+vault_oracle_pass: #X
+vault_grid_user_pass: #X
+vault_asm_sys_pass: #X
+vault_asm_mon_pass: #X
+vault_db_system_pass: #X
+vault_db_sys_pass: #X

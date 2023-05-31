@@ -1,0 +1,58 @@
+---
+- name: Install tigervnc-server package.
+  tags: vnc, service
+  ansible.builtin.package:
+    name: tigervnc-server
+    state: present
+
+- name: Install the 'Server with GUI' package group.
+  tags: vnc, service
+  ansible.builtin.dnf:
+    name: '@Server with GUI'
+    state: present
+
+- name: Add vncserver port to firewall.
+  tags: vnc, service
+  ansible.posix.firewalld:
+    port: 5901/tcp
+    permanent: yes
+    state: enabled
+    zone: public
+  notify: Reload firewall
+
+- name: Add oracle user to vncserver configuration.
+  tags: vnc, service
+  ansible.builtin.lineinfile:
+    path: /etc/tigervnc/vncserver.users
+    line: ":1={{ oracle_user }}"
+
+- name: Create VNC config directory for Oracle user.
+  tags: vnc, service
+  ansible.builtin.file:
+    path: /home/{{ oracle_user }}/{{ item.file }}
+    state: "{{ item.state }}"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { file: '.vnc', state: 'directory', mode: '700' }
+    - { file: '.vnc/config', state: 'touch', mode: '600' }
+
+- name: Set vncserver password for oracle user.
+  tags: vnc, service
+  ansible.builtin.shell: "printf '{{ oracle_pass }}\n{{ oracle_pass }}\n' | vncpasswd -f > /home/{{ oracle_user }}/.vnc/passwd"
+  args:
+    creates: "/home/{{ oracle_user }}/.vnc/passwd"
+
+- name: Set use gnome for vncserver.
+  tags: vnc, service
+  ansible.builtin.lineinfile:
+    path: /home/{{ oracle_user }}/.vnc/config
+    line: "session=gnome"
+
+- name: Start and enable vnc server.
+  tags: vnc, service
+  ansible.builtin.service:
+    name: vncserver@:1
+    state: restarted
+    enabled: true

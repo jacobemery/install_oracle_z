@@ -1,0 +1,15 @@
+---
+- name: Restart NetworkManager
+  ansible.builtin.service:
+    name: NetworkManager
+    state: restarted
+
+- name: Restart chronyd
+  ansible.builtin.service:
+    name: chronyd
+    state: restarted
+
+- name: Reload firewall
+  systemd:
+    name: firewalld
+    state: reloaded

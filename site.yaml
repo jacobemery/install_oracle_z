@@ -1,0 +1,4 @@
+- import_playbook: 0_connect_hosts.yaml
+- import_playbook: 1_oracle_prep.yaml
+- import_playbook: 2_asm_install.yaml
+- import_playbook: 3_oracledb_install.yaml
