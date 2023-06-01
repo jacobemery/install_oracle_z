@@ -28,13 +28,16 @@
         creates: "{{ oracle_home }}/runInstaller"
         remote_src: true
 
-    - name: Unzip new OPatch to replace old.
-      tags: asm
-      ansible.builtin.unarchive:
-        src: "{{ db_opatch_zip }}"
-        dest: "{{ oracle_home }}"
-        remote_src: true
-      when: asm_setup
+    # - name: Unzip new OPatch to replace old.
+    #   tags: asm
+    #   ansible.builtin.unarchive:
+    #     src: "{{ db_opatch_zip }}"
+    #     dest: "{{ oracle_home }}"
+    #     remote_src: true
+    #     owner: "{{ oracle_user }}"
+    #     group: oinstall
+    #     mode: '755'
+    #   when: asm_setup
 
     - name: Template response file for silent install.
       tags: install, db, template
