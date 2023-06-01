@@ -3,7 +3,7 @@
 - name: Configure server - Oracle DB install.
   hosts: db_servers
   vars:
-    v_maj: "{{ oracle_version | split('.') | first | string }}"
+    v_maj: "{{ oracle_version.split('.') | first | string }}"
     v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
   tasks:
 
@@ -109,17 +109,18 @@
     #   ansible.builtin.debug:
     #     msg: "{{ lsnrctl_status.stdout }}"
 
-    - name: Add SSH key to Oracle user's authorized_keys file.
-      tags: oracle, ssh_copy_id, authorized_keys
-      ansible.builtin.authorized_key:
-        user: "{{ oracle_user }}"
-        state: present
-        key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
+    # - name: Add SSH key to Oracle user's authorized_keys file.
+    #   tags: oracle, ssh_copy_id, authorized_keys
+    #   ansible.builtin.authorized_key:
+    #     user: "{{ oracle_user }}"
+    #     state: present
+    #     key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
 
 - hosts: db_servers
   vars:
     ansible_user: "{{ oracle_user }}"
-    v_maj: "{{ oracle_version | split('.') | first | string }}"
+    ansible_ssh_password: "{{ oracle_pass }}"
+    v_maj: "{{ oracle_version.split('.') | first | string }}"
     v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
 
   tasks:

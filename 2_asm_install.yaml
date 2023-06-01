@@ -3,7 +3,7 @@
 - name: Configure server - Oracle DB install.
   hosts: db_servers
   vars:
-    v_maj: "{{ oracle_version | split('.') | first | string }}"
+    v_maj: "{{ oracle_version.split('.') | first | string }}"
     v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
 
   tasks:
@@ -70,12 +70,12 @@
         state: directory
       when: asm_setup
 
-    - name: Add SSH key to grid user's authorized_keys file.
-      tags: oracle, ssh_copy_id, authorized_keys
-      ansible.builtin.authorized_key:
-        user: "{{ grid_user }}"
-        state: present
-        key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
+    # - name: Add SSH key to grid user's authorized_keys file.
+    #   tags: oracle, ssh_copy_id, authorized_keys
+    #   ansible.builtin.authorized_key:
+    #     user: "{{ grid_user }}"
+    #     state: present
+    #     key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
 
     - name: Unzip Grid home.
       tags: pre, asm, zip
@@ -718,7 +718,7 @@
     #     name: data
     #     disks: "/dev/oracleasm/asm{{ ccw_num }}"
     #     attribute_name: compatible.asm
-    #     attribute_value: "{{ oracle_version | split('.')[0,1] }}"
+    #     attribute_value: "{{ oracle_version.split('.')[0,1] }}"
     #     redundancy: external
     #     state: present
     #     #username: sysasm
