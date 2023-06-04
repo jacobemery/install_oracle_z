@@ -1,7 +1,7 @@
 - import_playbook: 0_connect_hosts.yaml
 - import_playbook: 1_oracle_prep.yaml
   vars:
-      install_rpms: False
+    install_rpms: False
 
 - hosts: db_servers
   gather_facts: false
