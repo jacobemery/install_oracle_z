@@ -100,7 +100,7 @@
       ansible.builtin.dnf:
         name: "{{ grid_cvuqdisk_rpm }}"
         disable_gpg_check: true
-      when: asm_setup
+      when: asm_setup and install_rpms
 
     - name: Stop avahi-daemon, as recommended.
       tags: pre, asm

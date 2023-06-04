@@ -172,6 +172,7 @@
       ansible.builtin.dnf:
         name: "{{ ora_val }}"
         disable_gpg_check: true 
+      when: install_rpms
 
   handlers:
     - include_tasks: handlers/main.yaml
