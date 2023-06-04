@@ -20,6 +20,20 @@
         name: [ nfs-utils, tigervnc-server ]
         state: present
 
+    - name: Add vncserver port to firewall.
+      tags: vnc, service, firewall
+      ansible.posix.firewalld:
+        port: 5901/tcp
+        permanent: yes
+        state: enabled
+        zone: public
+    
+    - name: Restart firewall.
+      tags: firewall, vnc, service
+      ansible.builtin.service:
+        name: firewalld
+        state: restarted
+
     - name: Create groups for ASM.
       tags: user_mgmt, groups, asm
       ansible.builtin.group:
