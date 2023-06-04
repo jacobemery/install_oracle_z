@@ -8,28 +8,6 @@
 
   tasks:
 
-    - name: Create groups for ASM.
-      tags: user_mgmt, groups, asm
-      ansible.builtin.group:
-        name: "{{ item.group }}"
-        gid: "{{ item.gid }}"
-      loop:
-        - { group: asmdba, gid: 1003 }
-        - { group: asmoper, gid: 1004 }
-        - { group: asmadmin, gid: 1005 }
-      when: asm_setup
-    
-    - name: Create grid user and add to ASM groups.
-      tags: user_mgmt, groups, users
-      ansible.builtin.user:
-        name: "{{ grid_user }}"
-        password: "{{ grid_pass | password_hash('sha512') }}"
-        group: oinstall
-        groups: "asmadmin,asmdba,asmoper"
-        append: true
-        update_password: on_create
-      when: asm_setup
-
     - name: Create directories for ASM.
       tags: user_mgmt, users, dir
       ansible.builtin.file:
