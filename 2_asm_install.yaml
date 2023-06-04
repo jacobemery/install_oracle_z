@@ -24,14 +24,10 @@
       ansible.builtin.user:
         name: "{{ grid_user }}"
         password: "{{ grid_pass | password_hash('sha512') }}"
-        groups: "{{ item }}"
+        group: oinstall
+        groups: "asmadmin,asmdba,asmoper"
         append: true
         update_password: on_create
-      loop:
-        - asmadmin
-        - asmdba
-        - asmoper
-        - oinstall
       when: asm_setup
 
     - name: Create directories for ASM.
