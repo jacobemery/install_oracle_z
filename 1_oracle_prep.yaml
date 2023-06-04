@@ -1,7 +1,7 @@
 # Work in Progress!
 ---
 - name: Configure server - Oracle DB install.
-  hosts: db_servers
+  hosts: "{{ hosts | default('db_servers') }}"
   vars:
     v_maj: "{{ oracle_version.split('.') | first | string }}"
     v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"

@@ -3,7 +3,7 @@
   vars:
     install_rpms: False
 
-- hosts: db_servers
+- hosts: "{{ hosts | default('db_servers') }}"
   gather_facts: false
   tasks:
 

@@ -1,7 +1,7 @@
 # Work in Progress!
 ---
 - name: "Pre-Flight Connection Test: Ensure all hosts in inventory are reachable via SSH and use ssh-copy-id if unreachable, then gather facts."
-  hosts: all
+  hosts: "{{ hosts | default('all') }}"
   gather_facts: no
   tasks:
 
