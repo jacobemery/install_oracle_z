@@ -23,28 +23,26 @@
         name: "{{ oracle_user }}"
         password: "{{ oracle_pass | password_hash('sha512') }}"
         uid: 1000
-        groups: "{{ item.groups }}"
-        append: "{{ item.append }}"
+        group: oinstall
+        groups: "dba,oper"
+        append: true
         update_password: on_create
-      loop:
-        - { groups: "oinstall", append: false }
-        - { groups: "dba,oper", append: true }
 
   roles:
     - rngd
-    - vnc
+    # - vnc
 
   post_tasks:
     - name: Check transparent_hugepage setting.
       tags: grubby
-      ansible.builtin.command: "cat /proc/cmdline"
-      register: proc_cmdline
+      ansible.builtin.command: "cat /sys/kernel/mm/transparent_hugepage/enabled"
+      register: hugepage
       changed_when: false
 
     - name: Set transparent_hugepage to never with grubby.
       tags: grubby
       ansible.builtin.command: "grubby --update-kernel=ALL --args='transparent_hugepage=never'"
-      when: "'transparent_hugepage=never' not in proc_cmdline.stdout"
+      when: "'[never]' not in hugepage.stdout"
 
     - name: Verify changes with zipl.
       tags: zipl
@@ -151,8 +149,11 @@
           export ORACLE_BASE={{ oracle_base }}
           export ORACLE_HOME={{ oracle_home }}
           {{ 'export PATH=$PATH:' + oracle_home + '/bin:' + oracle_home + '/OPatch' }}{{ ':' + grid_home + '/bin:' + grid_home + '/OPatch' if asm_setup }}
-          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
           export CV_ASSUME_DISTID=RHEL{{ ansible_distribution_version }}
+          export ORACLE_SID={{ db_unique_name }}
+          ORAENV_ASK=NO
+          #. oraenv
+          ORAENV_ASK=YES
       loop:
         - { path: "/home/{{ oracle_user }}", owner: "{{ oracle_user }}", group: oinstall }
         - { path: /root, owner: root, group: root }
