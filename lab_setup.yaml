@@ -1,9 +1,24 @@
 - import_playbook: 0_connect_hosts.yaml
 - import_playbook: 1_oracle_prep.yaml
+  vars:
+      install_rpms: False
 
 - hosts: db_servers
   gather_facts: false
   tasks:
+
+    - name: Setup disk for ASM.
+      tags: always
+      ansible.builtin.include_role:
+        name: asm
+        tasks_from: "{{ asm_disk_type }}.yaml"
+      when: asm_setup
+
+    - name: Install VNC and NFS-utils
+      tags: packages
+      ansible.builtin.package:
+        name: [ nfs-utils, tigervnc-server ]
+        state: present
 
     - name: Create groups for ASM.
       tags: user_mgmt, groups, asm
