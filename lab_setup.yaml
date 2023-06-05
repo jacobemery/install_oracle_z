@@ -60,7 +60,7 @@
       tags: dir
       ansible.builtin.file:
         path: /u01
-        owner: "{{ oracle.user }}"
+        owner: "{{ oracle_user }}"
         group: oinstall
         mode: '775'
         state: directory
