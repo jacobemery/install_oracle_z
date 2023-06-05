@@ -17,7 +17,7 @@ all:
         oracle_version:               19.0.1-1                                                                      # Version of Oracle Database to be installed
         oracle_home:                  /u01/app/oracle/19.0/dbhome                                                   # Absolute path to ORACLE_HOME
         oracle_base:                  /u01/app                                                                      # Absolute path to ORACLE_BASE
-        oracle_inventory:             /u01/inventory                                                                # Absolute path to ORACLE_INVENTORY
+        oracle_inventory:             /u01/oraInventory                                                             # Absolute path to ORACLE_INVENTORY
         oracle_user:                  oracle                                                                        # Name of Oracle user
         oracle_pass:                  "{{ vault_oracle_pass }}"                                                     # Password for Oracle user - must be filled in at group_vars/db_servers/vault.yaml
         install_rpms:                 True                                                                          # True or False, install RPMs with Ansible
