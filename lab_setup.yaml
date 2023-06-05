@@ -56,6 +56,16 @@
         update_password: on_create
       when: asm_setup
 
+    - name: Ensure oinstall group owns /u01 directory.
+      tags: dir
+      ansible.builtin.file:
+        path: /u01
+        owner: "{{ oracle.user }}"
+        group: oinstall
+        mode: '775'
+        state: directory
+        recurse: True
+
     - name: Reboot db servers.
       tags: reboot
       ansible.builtin.reboot:
