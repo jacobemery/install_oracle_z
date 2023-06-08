@@ -1,0 +1,27 @@
+- import_playbook: 0_connect_hosts.yaml
+- name: Generate load on DB servers via custom test.sh script.
+  hosts: "{{ hosts | default('db_servers') }}"
+  tasks:
+
+    - name: Add SSH key to Oracle user's authorized_keys file.
+      tags: oracle, ssh_copy_id, authorized_keys
+      ansible.builtin.authorized_key:
+        user: "{{ oracle_user }}"
+        state: present
+        key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
+
+    - block:
+      - name: Run test script.
+        tags: test_script, async
+        ansible.builtin.shell:
+          cmd: "{{ nfs_mount_point }}/test.sh"
+        async: 300
+        poll: 0
+        register: test_script
+
+      always:
+      - name: Cleanup async job cache for database creation.
+        tags: test_script, cleanup
+        ansible.builtin.async_status:
+          jid: "{{ test_script.ansible_job_id }}"
+          mode: cleanup
