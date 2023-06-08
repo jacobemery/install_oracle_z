@@ -1,14 +1,9 @@
 - import_playbook: 0_connect_hosts.yaml
 - name: Generate load on DB servers via custom test.sh script.
+  become: true
+  become_user: "{{ oracle_user }}"
   hosts: "{{ hosts | default('db_servers') }}"
   tasks:
-
-    - name: Add SSH key to Oracle user's authorized_keys file.
-      tags: oracle, ssh_copy_id, authorized_keys
-      ansible.builtin.authorized_key:
-        user: "{{ oracle_user }}"
-        state: present
-        key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
 
     - block:
       - name: Run test script.
