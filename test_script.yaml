@@ -1,8 +1,7 @@
 - import_playbook: 0_connect_hosts.yaml
 - name: Generate load on DB servers via custom test.sh script.
-  become: true
-  become_user: "{{ oracle_user }}"
-  hosts: "{{ hosts | default('db_servers') }}"
+  ansible_user: "{{ oracle_user }}"
+  ansible_ssh_password: "{{ oracle_pass }}"
   tasks:
 
     - block:
