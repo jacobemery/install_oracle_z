@@ -216,6 +216,10 @@
         name: asm
         tasks_from: "{{ asm_disk_type }}.yaml"
       when: asm_setup
+      
+    - name: Reboot db servers.
+      tags: disk, asm, reboot
+      ansible.builtin.reboot:
 
     - name: Get lsblk output for debugging/verification.
       tags: disk, asm
