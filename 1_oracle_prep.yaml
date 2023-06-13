@@ -184,10 +184,6 @@
         state: directory
         recurse: True
 
-    - name: Reboot db servers.
-      tags: reboot
-      ansible.builtin.reboot:
-
     - name: Check transparent_hugepage setting.
       tags: grubby
       ansible.builtin.command: "cat /sys/kernel/mm/transparent_hugepage/enabled"
