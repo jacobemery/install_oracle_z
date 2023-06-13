@@ -1,7 +1,7 @@
 # Work in Progress!
 ---
 - name: Configure server - Oracle DB install.
-  hosts: db_servers
+  hosts: "{{ hosts | default('db_servers') }}"
   vars:
     v_maj: "{{ oracle_version.split('.') | first | string }}"
     v_maj_min: "{{ oracle_version.split('.')[:2] | join('.') | string }}"
@@ -24,14 +24,10 @@
       ansible.builtin.user:
         name: "{{ grid_user }}"
         password: "{{ grid_pass | password_hash('sha512') }}"
-        groups: "{{ item }}"
+        group: oinstall
+        groups: "asmadmin,asmdba,asmoper"
         append: true
         update_password: on_create
-      loop:
-        - asmadmin
-        - asmdba
-        - asmoper
-        - oinstall
       when: asm_setup
 
     - name: Create directories for ASM.
@@ -70,12 +66,12 @@
         state: directory
       when: asm_setup
 
-    - name: Add SSH key to grid user's authorized_keys file.
-      tags: oracle, ssh_copy_id, authorized_keys
-      ansible.builtin.authorized_key:
-        user: "{{ grid_user }}"
-        state: present
-        key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
+    # - name: Add SSH key to grid user's authorized_keys file.
+    #   tags: oracle, ssh_copy_id, authorized_keys
+    #   ansible.builtin.authorized_key:
+    #     user: "{{ grid_user }}"
+    #     state: present
+    #     key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
 
     - name: Unzip Grid home.
       tags: pre, asm, zip
@@ -104,7 +100,7 @@
       ansible.builtin.dnf:
         name: "{{ grid_cvuqdisk_rpm }}"
         disable_gpg_check: true
-      when: asm_setup
+      when: asm_setup and install_rpms
 
     - name: Stop avahi-daemon, as recommended.
       tags: pre, asm
@@ -220,6 +216,10 @@
         name: asm
         tasks_from: "{{ asm_disk_type }}.yaml"
       when: asm_setup
+      
+    - name: Reboot db servers.
+      tags: disk, asm, reboot
+      ansible.builtin.reboot:
 
     - name: Get lsblk output for debugging/verification.
       tags: disk, asm

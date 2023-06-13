@@ -1,7 +1,7 @@
 # Work in Progress!
 ---
 - name: Deinstall Oracle Automatic Storage Manager (ASM).
-  hosts: db_servers
+  hosts: "{{ hosts | default('db_servers') }}"
   tasks:
 
     - name: Deinstall Grid.

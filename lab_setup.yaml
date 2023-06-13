@@ -1,0 +1,71 @@
+- import_playbook: 0_connect_hosts.yaml
+- import_playbook: 1_oracle_prep.yaml
+  vars:
+    install_rpms: False
+
+- hosts: "{{ hosts | default('db_servers') }}"
+  gather_facts: false
+  tasks:
+
+    - name: Setup disk for ASM.
+      tags: always
+      ansible.builtin.include_role:
+        name: asm
+        tasks_from: "{{ asm_disk_type }}.yaml"
+      when: asm_setup
+
+    - name: Install VNC and NFS-utils
+      tags: packages
+      ansible.builtin.package:
+        name: [ nfs-utils, tigervnc-server ]
+        state: present
+
+    - name: Add vncserver port to firewall.
+      tags: vnc, service, firewall
+      ansible.posix.firewalld:
+        port: 5901/tcp
+        permanent: yes
+        state: enabled
+        zone: public
+    
+    - name: Restart firewall.
+      tags: firewall, vnc, service
+      ansible.builtin.service:
+        name: firewalld
+        state: restarted
+
+    - name: Create groups for ASM.
+      tags: user_mgmt, groups, asm
+      ansible.builtin.group:
+        name: "{{ item.group }}"
+        gid: "{{ item.gid }}"
+      loop:
+        - { group: asmdba, gid: 1003 }
+        - { group: asmoper, gid: 1004 }
+        - { group: asmadmin, gid: 1005 }
+      when: asm_setup
+    
+    - name: Create grid user and add to ASM groups.
+      tags: user_mgmt, groups, users
+      ansible.builtin.user:
+        name: "{{ grid_user }}"
+        password: "{{ grid_pass | password_hash('sha512') }}"
+        group: oinstall
+        groups: "asmadmin,asmdba,asmoper"
+        append: true
+        update_password: on_create
+      when: asm_setup
+
+    - name: Ensure oinstall group owns /u01 directory.
+      tags: dir
+      ansible.builtin.file:
+        path: /u01
+        owner: "{{ oracle_user }}"
+        group: oinstall
+        mode: '775'
+        state: directory
+        recurse: True
+
+    - name: Reboot db servers.
+      tags: reboot
+      ansible.builtin.reboot:

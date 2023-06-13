@@ -1,0 +1,23 @@
+- import_playbook: 0_connect_hosts.yaml
+- name: Generate load on DB servers via custom test.sh script.
+  hosts: db_servers
+  vars:
+    ansible_user: "{{ oracle_user }}"
+    ansible_ssh_password: "{{ oracle_pass }}"
+  tasks:
+
+    - block:
+      - name: Run test script.
+        tags: test_script, async
+        ansible.builtin.shell:
+          cmd: "{{ nfs_mount_point }}/test.sh"
+        async: 300
+        poll: 10
+        register: test_script
+
+      always:
+      - name: Cleanup async job cache for database creation.
+        tags: test_script, cleanup
+        ansible.builtin.async_status:
+          jid: "{{ test_script.ansible_job_id }}"
+          mode: cleanup
