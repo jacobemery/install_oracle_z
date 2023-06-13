@@ -6,7 +6,7 @@ This playbook automates the configuration of servers for Oracle Database install
 
 ## Pre-requisites:
 - Root shell to RHEL>=v8 on IBM zSystems.
-- RPM packages for Oracle Database and ASM for s390x architecture from the [Oracle Software Delivery Cloud](https://edelivery.oracle.com/) downloaded to your server.
+- RPM packages for Oracle Database and ASM for s390x architecture from the [Oracle Software Delivery Cloud](https://edelivery.oracle.com/) downloaded or accessible via NFS.
 - Minumum of 2GB RAM and 10GB (+16GB if using ASM) of disk space.
 
 ## Instructions:
@@ -21,7 +21,7 @@ git clone https://github.com/jacobemery/install_oracle_z.git
 ```
 ### 3. Change into directory.
 ```
-cd oracle_install
+cd oracle_install_z
 ```
 ### 4. Set variables
   - Ensure all variables in `inventory.yaml` are correct for your environment.
