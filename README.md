@@ -21,7 +21,7 @@ git clone https://github.com/jacobemery/install_oracle_z.git
 ```
 ### 3. Change into directory.
 ```
-cd oracle_install_z
+cd install_oracle_z
 ```
 ### 4. Set variables
   - Ensure all variables in `inventory.yaml` are correct for your environment.
