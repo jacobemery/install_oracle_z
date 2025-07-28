@@ -3,28 +3,113 @@
 - name: Deinstall Oracle Automatic Storage Manager (ASM).
   hosts: db_servers
   tasks:
+    - name: Template response file for silent Deinstall
+      tags: Deinstall
+      ansible.builtin.template:
+        src: asm_deinstall.rsp.j2
+        dest: "/home/{{ grid_user }}/asm_deinstall.rsp"
+        owner: "{{ grid_user }}"
+        mode: '600'
+
+    # - name: Deinstall Grid.
+    #   tags: grid, deinstall
+    #   become: true
+    #   become_user: "{{ grid_user }}"
+    #   ansible.builtin.command:
+    #     cmd: "{{ grid_home }}/deinstall/deinstall -silent -paramfile /home/{{ grid_user }}/asm_deinstall.rsp"
+    #   register: deinstall
+
+
+    # failed_when: "'Oracle Universal Installer cleanup was successful.' not in deinstall.stdout"
 
     - name: Deinstall Grid.
       tags: grid, deinstall
       become: true
       become_user: "{{ grid_user }}"
-      ansible.builtin.expect:
-        command: "{{ grid_home }}/deinstall/deinstall"
-        echo: true
-        responses:
-          Questions:
-          - Specify a comma-separated list of remote nodes to cleanup: "{{ ansible_hostname }}"
-          - ASM configuration was not detected in this Oracle home. Was ASM configured in this Oracle home (y|n) [n]: 'y'
-          - If you want to retain the existing diskgroups or if any of the information detected is incorrect, you can modify by entering 'y'. Do you  want to modify above information (y|n) [n]: 'n'
-          - Do you want to continue (y - yes, n - no)? [n]: 'y'
-      register: deinstall
-      #failed_when: "'Oracle Universal Installer cleanup was successful.' not in deinstall.stdout"
+      block:
+        - name: Run Grid deinstall command with environment
+          become: true
+          become_user: "{{ grid_user }}"
+          ansible.builtin.shell: |
+            source /home/{{ grid_user }}/.bash_profile
+            {{ grid_home }}/deinstall/deinstall -silent -paramfile /home/{{ grid_user }}/asm_deinstall.rsp
+          register: deinstall
+          failed_when: deinstall.rc != 0
 
-    - name: Remove files.
-      tags: file
-      ansible.builtin.file:
-        path: "{{ grid_home }}"
-        state: absent
+        # - name: Run Grid deinstall command
+        #   ansible.builtin.shell:
+        #     cmd: "{{ grid_home }}/deinstall/deinstall -silent -paramfile /home/{{ grid_user }}/asm_deinstall.rsp"
+        #   register: deinstall
+        #   failed_when: deinstall.rc != 0
+
+      rescue:
+        - name: Print deinstall stderr (optional)
+          ansible.builtin.debug:
+            var: deinstall.stderr_lines
+
+    - name: Print deinstall stdout lines
+      ansible.builtin.debug:
+        var: deinstall.stdout_lines
+
+    - name: Extract rootdeinstall.sh path from deinstall output
+      ansible.builtin.set_fact:
+        # Find line that contains '.*rootdeinstall.sh'
+        # Extract the actual path using a regex
+        root_deinstall_path: >-
+          {{ deinstall.stdout_lines
+            | select('match', '.*rootdeinstall\.sh.*')
+            | map('regex_search', '(/tmp/[^\"]+rootdeinstall\.sh)')
+            | list
+            | first }}
+      when: deinstall.rc == 0
+
+    - name: Run rootdeinstall.sh script
+      ansible.builtin.shell: |
+        source /root/.bash_profile
+        {{ root_deinstall_path }}
+      register: root_deinstall_result
+      failed_when: root_deinstall_result.rc != 0
+
+    - name: Print rootdeinstall stdout lines
+      ansible.builtin.debug:
+        var: root_deinstall_result.stdout_lines
+
+    - name: Extract manual rm -r paths
+      ansible.builtin.set_fact:
+        manual_rm_paths: >-
+          {{ root_deinstall_result.stdout_lines
+            | select('match', ".*Run 'rm -r.*")
+            | map('regex_search', "rm -r ([^']+)")
+            | select('string')
+            | list }}
+
+    - name: Strip 'rm -r ' from each item in manual_rm_paths
+      ansible.builtin.set_fact:
+        manual_rm_paths_cleaned: >-
+          {{ manual_rm_paths
+            | map('regex_replace', '^rm -r\s+', '')
+            | list }}
+
+    - name: Show manually suggested rm paths (cleaned)
+      ansible.builtin.debug:
+        var: manual_rm_paths_cleaned
+
+    - name: Remove manually specified Oracle files
+      ansible.builtin.shell:
+        rm -rf "{{ item }}"
+      loop: "{{ manual_rm_paths_cleaned }}"
+      when: manual_rm_paths_cleaned | length > 0
+
+
+
+
+
+
+    # - name: Remove files.
+    #   tags: file
+    #   ansible.builtin.file:
+    #     path: "{{ grid_home }}"
+    #     state: absent
 
     # - name: Get channel command word (ccw) value from lsdasd for use in next task.
     #   tags: install, asm
@@ -33,6 +118,6 @@
     #   changed_when: false
     #   when: asm_disk_type == 'dasd'
 
-    - name: Zero out oracleasm disk.
-      tags: disk
-      ansible.builtin.command: "dd if=/dev/zero of=/dev/oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }} bs=1024k count=100"
+    # - name: Zero out oracleasm disk.
+    #   tags: disk
+    #   ansible.builtin.command: "dd if=/dev/zero of=/dev/oracleasm/asm{{ asm_disk_ccw.split('.')[-1] }} bs=1024k count=100"
