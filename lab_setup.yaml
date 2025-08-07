@@ -17,7 +17,7 @@
     - name: Install VNC and NFS-utils
       tags: packages
       ansible.builtin.package:
-        name: [ nfs-utils, tigervnc-server ]
+        name: [nfs-utils, tigervnc-server]
         state: present
 
     - name: Create groups for ASM.

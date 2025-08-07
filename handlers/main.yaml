@@ -10,6 +10,6 @@
     state: restarted
 
 - name: Reload firewall
-  systemd:
+  ansible.builtin.systemd:
     name: firewalld
     state: reloaded

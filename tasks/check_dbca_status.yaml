@@ -20,7 +20,7 @@
 - name: Print dbca status.
   tags: install, db, dbca
   ansible.builtin.debug:
-    msg: | 
+    msg: |
       INFO: {{ ansible_date_time.time }} - {{ db_unique_name }} creation status:
       {{ dbca_log.stdout_lines | to_nice_yaml }}
 
@@ -33,9 +33,9 @@
   tags: install, db, dbca
   ansible.builtin.pause:
     minutes: 1
-    
+
 - name: Re-run status check if dbca process is not finished.
   tags: install, db, dbca
-  ansible.builtin.include_tasks: 
+  ansible.builtin.include_tasks:
     file: tasks/check_dbca_status.yaml
   when: re_run

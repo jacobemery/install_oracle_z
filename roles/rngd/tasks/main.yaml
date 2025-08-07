@@ -11,7 +11,7 @@
   ansible.builtin.service:
     name: rngd
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Change to recommended random number methodology.
   tags: rngd, service

@@ -2,6 +2,6 @@
 
 - name: Reload firewall
   tags: firewalld
-  systemd:
+  ansible.builtin.systemd:
     name: firewalld
     state: reloaded

@@ -53,8 +53,6 @@
 
     - name: Extract rootdeinstall.sh path from deinstall output
       ansible.builtin.set_fact:
-        # Find line that contains '.*rootdeinstall.sh'
-        # Extract the actual path using a regex
         root_deinstall_path: >-
           {{ deinstall.stdout_lines
             | select('match', '.*rootdeinstall\.sh.*')

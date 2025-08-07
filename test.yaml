@@ -1,0 +1,10 @@
+---
+- name: Print encrypted vars
+  # Targets all hosts specified in the hosts variable or default value 'db-servers'
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: debug
+      ansible.builtin.debug:
+        var: hostvars['zdblab01'].grid_sys_pass
+
