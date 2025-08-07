@@ -1,0 +1,6 @@
+---
+- name: Install RAC
+  hosts: zdblab01
+  tasks:
+  # Get shell command from Dave and convert to Ansible
+  # Coordinate execution of installation with response file

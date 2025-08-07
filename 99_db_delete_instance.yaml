@@ -1,0 +1,100 @@
+# Work in Progress!
+---
+- name: Delete Oracle Database.
+  hosts: db_servers
+  tasks:
+
+    - name: Add info to root and oracle user's .bash_profiles.
+      tags: user_mgmt, users
+      ansible.builtin.lineinfile:
+        path: "{{ item.path }}"
+        line: "{{ item.line  }}"
+        regexp: "{{ item.regexp | default('none')  }}"
+        create: true
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+      loop:
+        - { path: "/home/{{ oracle_user }}/.bash_profile", line: "export ORACLE_SID={{ db_unique_name }}", regexp: "export ORACLE_SID=", owner: "{{ oracle_user }}", group: oinstall }
+        - { path: "/home/{{ oracle_user }}/.bash_profile", line: "export ORACLE_BASE={{ oracle_base }}", regexp: "export ORACLE_BASE=", owner: "{{ oracle_user }}", group: oinstall }
+        - { path: "/root/.bash_profile", line: "export ORACLE_SID={{ db_unique_name }}", regexp: 'export ORACLE_SID=', owner: root, group: root }
+        - { path: "/root/.bash_profile", line: "export ORACLE_BASE={{ oracle_base }}", regexp: 'export ORACLE_BASE=', owner: root, group: root }
+
+    - name: Delete Oracle Database instance
+      tags: expect, delete
+      become: true
+      become_user: "{{ oracle_user }}"
+      ansible.builtin.shell: |
+        set -o pipefail
+        source /home/{{ oracle_user }}/.bash_profile
+        {{ oracle_home }}/bin/dbca -silent -deleteDatabase -sourceDB {{ db_unique_name }} -sysDBAUserName SYS -sysDBAPassword classpw
+      register: dbca_delete_result
+      no_log: false
+
+    - name: Print DBCA delete command output
+      ansible.builtin.debug:
+        msg: "{{ dbca_delete_result.stdout_lines }}"
+        verbosity: 0
+
+    - name: Template response file for silent Deinstall
+      tags: Deinstall
+      ansible.builtin.template:
+        src: db_deinstall.rsp.j2
+        dest: "/home/{{ oracle_user }}/db_deinstall.rsp"
+        owner: "{{ oracle_user }}"
+        mode: '600'
+
+    - name: Run Oracle Database Deinstall
+      tags: Deinstall
+      become: true
+      become_user: "{{ oracle_user }}"
+      ansible.builtin.shell: |
+        set -o pipefail
+        source /home/{{ oracle_user }}/.bash_profile
+        {{ oracle_home }}/deinstall/deinstall -silent -paramfile /home/{{ oracle_user }}/db_deinstall.rsp
+      register: database_deinstall
+
+    - name: Print database deinstall command output
+      ansible.builtin.debug:
+        msg: "{{ database_deinstall.stdout_lines }}"
+        verbosity: 0
+
+    # - name: Get PMON PID for SID
+    #   become_user: root
+    #   ansible.builtin.shell: |
+    #     pgrep -f "ora_pmon_{{ db_unique_name }}"
+    #   register: pmon_pid
+    #   changed_when: false
+    #   failed_when: false
+    #   tags: remove-SID
+
+    # - name: Force kill PMON process
+    #   ansible.builtin.shell: |
+    #     kill -9 {{ pmon_pid.stdout }}
+    #   when: pmon_pid.stdout is defined and pmon_pid.stdout != ""
+    #   become_user: root
+    #   tags: remove-SID
+
+    # - name: Detach home.
+    #   become: true
+    #   become_user: "{{ oracle_user }}"
+    #   ansible.builtin.command:
+    #     cmd: "{{ oracle_home }}/oui/bin/runInstaller -silent -detachHome ORACLE_HOME='{{ oracle_home }}'"
+
+    # - name: Remove SID.
+    #   ansible.builtin.command:
+    #     cmd: "rm -rf /u01/app/oracle/oradata/{{ db_unique_name }}"
+    #   tags: remove-SID
+
+    # - name: Gracefully shut down Oracle instance
+    #   become: true
+    #   become_user: "{{ oracle_user }}"
+    #   ansible.builtin.shell: |
+    #     echo "SHUTDOWN IMMEDIATE;" | sqlplus -s / as sysdba
+    #   args:
+    #     executable: /bin/bash
+    #   register: shutdown_result
+    #   failed_when: false
+
+    # - name: Debug shutdown result
+    #   ansible.builtin.debug:
+    #     var: shutdown_result.stdout_lines

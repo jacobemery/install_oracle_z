@@ -15,7 +15,7 @@
   tags: vnc, service
   ansible.posix.firewalld:
     port: 5901/tcp
-    permanent: yes
+    permanent: true
     state: enabled
     zone: public
   notify: Reload firewall

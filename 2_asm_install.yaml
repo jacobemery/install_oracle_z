@@ -1,4 +1,4 @@
-# Work in Progress!
+
 ---
 - name: Configure server - Oracle DB install.
   hosts: "{{ hosts | default('db_servers') }}"
@@ -18,12 +18,12 @@
         - { group: asmoper, gid: 1004 }
         - { group: asmadmin, gid: 1005 }
       when: asm_setup
-    
+
     - name: Create grid user and add to ASM groups.
       tags: user_mgmt, groups, users
       ansible.builtin.user:
         name: "{{ grid_user }}"
-        password: "{{ grid_pass | password_hash('sha512') }}"
+        password: "{{ grid_pass | string | password_hash('sha512', salt) }}"
         group: oinstall
         groups: "asmadmin,asmdba,asmoper"
         append: true
@@ -31,7 +31,7 @@
       when: asm_setup
 
     - name: Create directories for ASM.
-      tags: user_mgmt, users, dir
+      tags: user_mgmt, users, dir, test
       ansible.builtin.file:
         path: "{{ grid_home }}"
         state: directory
@@ -44,7 +44,7 @@
     - name: Add info to root and oracle user's .bash_profiles.
       tags: user_mgmt, users
       ansible.builtin.lineinfile:
-        path: "{{ item.path }}"
+        path: "{{ item.path }}" 
         line: "{{ item.line  }}"
         regexp: "{{ item.regexp | default('none')  }}"
         create: true
@@ -53,14 +53,16 @@
       loop:
         - { path: "/home/{{ grid_user }}/.bash_profile", line: "export GRID_HOME={{ grid_home }}", regexp: 'export GRID_HOME=', owner: "{{ grid_user }}", group: oinstall }
         - { path: "/home/{{ grid_user }}/.bash_profile", line: "{{ 'export ORACLE_HOME=' + grid_home }}", regexp: 'export ORACLE_HOME=', owner: "{{ grid_user }}", group: oinstall }
+        - { path: "/home/{{ grid_user }}/.bash_profile", line: "{{ 'export ORACLE_INVENTORY=' + oracle_inventory }}", regexp: 'export ORACLE_INVENTORY=', owner: "{{ grid_user }}", group: oinstall }
         - { path: "/home/{{ grid_user }}/.bash_profile", line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP", regexp: "CVUQDISK_GRP", owner: "{{ grid_user }}", group: oinstall }
         - { path: "/root/.bash_profile", line: "export GRID_HOME={{ grid_home }}", regexp: 'export GRID_HOME=', owner: root, group: root }
         - { path: "/root/.bash_profile", line: "{{ 'export ORACLE_HOME=' + grid_home }}", regexp: 'export ORACLE_HOME=', owner: root, group: root }
+        - { path: "/root/.bash_profile", line: "{{ 'export ORACLE_INVENTORY=' + oracle_inventory }}", regexp: 'export ORACLE_INVENTORY=', owner: root, group: root }
         - { path: "/root/.bash_profile", line: "CVUQDISK_GRP=oinstall; export CVUQDISK_GRP", regexp: "CVUQDISK_GRP", owner: root, group: root }
       when: asm_setup
 
     - name: Ensure grid home directory exists.
-      tags: pre, asm
+      tags: pre, asm, test
       ansible.builtin.file:
         path: "{{ grid_home }}"
         state: directory
@@ -74,7 +76,7 @@
     #     key: "{{ lookup('file', ansible_ssh_private_key_file + '.pub') }}"
 
     - name: Unzip Grid home.
-      tags: pre, asm, zip
+      tags: pre, asm, zip, test
       ansible.builtin.unarchive:
         src: "{{ grid_zip }}"
         dest: "{{ grid_home }}"
@@ -94,17 +96,17 @@
         group: oinstall
         recurse: true
       when: asm_setup
-
+    
     - name: Install cvuqdisk RPM.
       tags: pre, asm
-      ansible.builtin.dnf:
+      ansible.builtin.dnf:  
         name: "{{ grid_cvuqdisk_rpm }}"
-        disable_gpg_check: true
+        disable_gpg_check: true   
       when: asm_setup and install_rpms
-
+    
     - name: Stop avahi-daemon, as recommended.
       tags: pre, asm
-      ansible.builtin.service:
+      ansible.builtin.service:  
         name: avahi-daemon
         state: stopped
         enabled: false
@@ -117,20 +119,20 @@
         backup: true
         line: "NOZEROCONF=yes"
         regexp: "NOZEROCONF="
-      notify: Restart NetworkManager
+      notify: Restart NetworkManager  
       when: asm_setup
 
     - name: Configure Network Time Protocol (NTP), as recommended (1/3) - install package.
       tags: pre, asm
-      ansible.builtin.package:
+      ansible.builtin.package: 
         name: chrony
       when: asm_setup
 
     - name: Configure Network Time Protocol (NTP), as recommended (2/3) - set firewall.
       tags: pre, asm
-      ansible.posix.firewalld:
+      ansible.posix.firewalld:  
         service: ntp
-        permanent: yes
+        permanent: true
         state: enabled
       notify: Reload firewall
       when: asm_setup
@@ -147,7 +149,7 @@
 
     - name: Create swap space, if requested (1/9) - create and zero out swap file.
       tags: pre, asm, swap
-      ansible.builtin.command: 
+      ansible.builtin.command:
         cmd: "dd if=/dev/zero of={{ swap_path }} bs=1M count={{ swap_size }}"
         creates: "{{ swap_path }}"
       when: swap_create and asm_setup
@@ -172,7 +174,7 @@
     - name: Create swap space, if requested (4/9) - make swap space.
       tags: pre, asm, swap
       ansible.builtin.command: "mkswap {{ swap_path }}"
-      when: swap_create and swap_exists.rc == 1 and asm_setup
+      when: swap_create and swap_exists.rc == 1 and asm_setup 
 
     - name: Create swap space, if requested (5/9) - check if swap is already on
       tags: pre, asm, swap
@@ -181,7 +183,7 @@
       changed_when: false
       failed_when: swap_on.rc > 1
       when: swap_create and asm_setup
-      
+
     - name: Create swap space, if requested (6/9) - initalize swap space.
       tags: pre, asm, swap
       ansible.builtin.command: "swapon {{ swap_path }}"
@@ -189,7 +191,7 @@
 
     - name: Create swap space, if requested (7/9) - write swap entry in fstab.
       tags: pre, asm, swap
-      ansible.posix.mount: 
+      ansible.posix.mount:
         path: none
         src: "{{ swap_path }}"
         state: present
@@ -216,10 +218,14 @@
         name: asm
         tasks_from: "{{ asm_disk_type }}.yaml"
       when: asm_setup
-      
+
     - name: Reboot db servers.
       tags: disk, asm, reboot
       ansible.builtin.reboot:
+
+    # - name: End play after templating response file
+    #   meta: end_play
+    #   when: asm_setup
 
     - name: Get lsblk output for debugging/verification.
       tags: disk, asm
@@ -234,8 +240,12 @@
         msg: "{{ lsblk_check.stdout_lines }}"
       when: asm_setup
 
+    - name: Remove OPatch
+      ansible.builtin.shell:
+        rm -rf /u01/app/grid/19.0/ghome/OPatch
+
     - name: Unzip new OPatch to replace old.
-      tags: asm
+      tags: asm, test
       ansible.builtin.unarchive:
         src: "{{ grid_opatch_zip }}"
         dest: "{{ grid_home }}"
@@ -243,7 +253,7 @@
       when: asm_setup
 
     - name: Ensure all files within grid home have proper ownership after unzip.
-      tags: pre, asm
+      tags: pre, asm, test
       ansible.builtin.file:
         path: "{{ grid_home }}"
         state: directory
@@ -264,7 +274,7 @@
     - name: Ensure required packages for install are present.
       tags: pre, asm, install
       ansible.builtin.package:
-        name: [ binutils, gcc, gcc-c++, glibc, glibc-devel, ksh, libgcc, libstdc++, libstdc++-devel, libaio, libXext, libXtst, libX11, libXau, libxcb, libXi, make, sysstat, elfutils-libelf-devel, libnsl ]
+        name: [binutils, gcc, gcc-c++, glibc, glibc-devel, ksh, libgcc, libstdc++, libstdc++-devel, libaio, libXext, libXtst, libX11, libXau, libxcb, libXi, make, sysstat, elfutils-libelf-devel, libnsl]
         state: present
 
     # - name: Get channel command word (ccw) value from lsdasd for use in next task.
@@ -275,7 +285,7 @@
     #   when: asm_disk_type == 'dasd' and asm_setup
 
     - name: Template response file for silent GridSetup.sh
-      tags: asm
+      tags: asm, test
       ansible.builtin.template:
         src: grid_install.rsp.j2
         dest: "{{ grid_home }}/install/response/grid_install.rsp"
@@ -284,28 +294,54 @@
         mode: '700'
       when: asm_setup
 
+
+    - name: Template shell script to install Oracle Grid Infrastructure
+      tags: asm, test
+      ansible.builtin.template:
+        src: gridPatchInstall.sh.j2
+        dest: "{{ oracle_base }}/gridPatchInstall.sh"
+        owner: "{{ grid_user }}"
+        group: oinstall
+        mode: '700'
+      when: asm_setup
+
+    - name: Set recursive permissions for grid user
+      ansible.builtin.shell:
+        chown -R {{ oracle_user }}:oinstall {{ grid_home }}
+
+    # - name: End play after templating response file
+    #   meta: end_play
+    #   when: asm_setup
+
     - name: Attempting to install Oracle Grid Infrastructure...
       block:
         - name: Install Oracle Grid Infrastructure using templated response file and apply release update.
           tags: install, asm
           become: true
           become_user: "{{ grid_user }}"
+          #   set -o pipefail
+          #   source /home/{{ grid_user }}/.bash_profile
+          #   {{ grid_home }}/gridSetup.sh \
+          #     -silent \
+          #     -responseFile {{ grid_home }}/install/response/grid_install.rsp \
+          #     -applyRU {{ grid_ru }} \
+          #     -applyOneOffs {{ grid_OneOffs }}
+          #     -ignorePrereqFailure \
+          #     -waitforcompletion
           ansible.builtin.shell: |
-            set -o pipefail 
+            set -o pipefail
             source /home/{{ grid_user }}/.bash_profile
-            {{ grid_home }}/gridSetup.sh -silent -responseFile {{ grid_home }}/install/response/grid_install.rsp -applyRU {{ grid_ru }} -ignorePrereqFailure -waitforcompletion
+            {{ oracle_base }}/gridPatchInstall.sh
           register: grid_setup
           failed_when: "'Successfully Setup Software' not in grid_setup.stdout"
           when: asm_setup
 
       rescue:
-        
-        - name: gridSetup.sh failed!
+        - name: Script gridSetup.sh failed!
           tags: install, asm
-          fail:
+          ansible.builtin.fail:
             msg: "ERROR: gridSetup.sh failed. Please see output for debugging purposes, take action to remediate errors, and re-run the playbook when ready."
           when: asm_setup
-      
       always:
         - name: Print results from gridSetup.sh
           tags: install, asm
@@ -373,13 +409,13 @@
 
     - name: Attempting to run root.sh script...
       block:
-      - name: Run root.sh script.
-        tags: install, asm, post, root
-        ansible.builtin.command: "{{ grid_home }}/root.sh"
-        register: root_exec
-        when: asm_setup
+        - name: Run root.sh script.
+          tags: install, asm, post, root
+          ansible.builtin.command: "{{ grid_home }}/root.sh"
+          register: root_exec
+          when: asm_setup
 
-      always: 
+      always:
         - name: Print immediate output from root.sh script.
           tags: install, asm, post, root
           ansible.builtin.debug:
@@ -392,7 +428,7 @@
           register: root_log
           changed_when: false
           when: asm_setup
-          
+
         - name: Print logs from root.sh script.
           tags: install, asm, post, root
           ansible.builtin.debug:
@@ -429,8 +465,8 @@
             changed_when: false
             failed_when: "pmon_check.rc != 0"
             when: asm_setup
-        
-          rescue: 
+
+          rescue:
             - name: Check if Oracle ASM is already added.
               tags: install, asm, post, validate
               ansible.builtin.shell: "{{ grid_home }}/bin/srvctl config asm"
@@ -471,7 +507,7 @@
                 msg: "{{ pmon_check.stdout }}"
               when: asm_setup
 
-        - block: 
+        - block:
           - name: Check status of listener.
             tags: install, asm, post, netca, validate
             become: true
@@ -498,7 +534,7 @@
               tags: install, asm, post, netca, validate
               become: true
               become_user: "{{ grid_user }}"
-              ansible.builtin.command: 
+              ansible.builtin.command:
                 cmd: "{{ grid_home }}/bin/netca -silent -responsefile /home/{{ grid_user }}/netca.rsp"
                 creates: "{{ grid_home }}/network/admin/listener.ora"
               when: asm_setup
@@ -582,7 +618,6 @@
           ansible.builtin.debug:
             msg: "{{ crsctl_status.stdout }}"
           when: asm_setup and not grid_config.failed
-        
 
     # - name: Template out TNSNAMES.ORA file.
     #   tags: install, asm, post, dg, tns
@@ -619,7 +654,7 @@
     #     - setuptools
     #     - cx_Oracle
     #   when: asm_setup
-    
+
     # - name: Create directory for Oracle Instant Client.
     #   tags: install, asm, post, dg
     #   ansible.builtin.file:
@@ -643,7 +678,7 @@
     #     unsafe_writes: yes
     #   register: unzip_client
     #   when: asm_setup
-        
+
     # - name: Find path to Oracle Instant Client.
     #   tags: install, asm, post, dg, create
     #   ansible.builtin.shell: "find /opt/oracle -type d -name 'instantclient_*' -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -f2- -d' '"
@@ -729,4 +764,17 @@
     #   when: asm_setup
 
   handlers:
-    - import_tasks: handlers/main.yaml
+    - name: Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Restart chronyd
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
+
+    - name: Reload firewall
+      ansible.builtin.systemd:
+        name: firewalld
+        state: reloaded

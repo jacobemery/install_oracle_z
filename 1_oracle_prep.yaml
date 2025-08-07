@@ -1,4 +1,4 @@
-# Work in Progress!
+
 ---
 - name: Configure server - Oracle DB install.
   hosts: "{{ hosts | default('db_servers') }}"
@@ -16,12 +16,12 @@
         - { group: oinstall, gid: 1000 }
         - { group: dba, gid: 1001 }
         - { group: oper, gid: 1002 }
-  
+
     - name: Create oracle user and add to groups.
       tags: user_mgmt, groups, users
       ansible.builtin.user:
         name: "{{ oracle_user }}"
-        password: "{{ oracle_pass | password_hash('sha512') }}"
+        password: "{{ oracle_pass | string | password_hash('sha512', salt) }}"
         uid: 1000
         group: oinstall
         groups: "dba,oper"
@@ -30,7 +30,6 @@
 
   roles:
     - rngd
-    # - vnc
 
   post_tasks:
     - name: Check transparent_hugepage setting.
@@ -52,7 +51,7 @@
 
     - name: Print zipl output from previous task for debugging and verification.
       tags: zipl
-      debug:
+      ansible.builtin.debug:
         var: zipl.stdout_lines
 
     - name: Set correct hostname.
@@ -75,7 +74,7 @@
         group: oinstall
         mode: '775'
         recurse: true
-      loop: 
+      loop:
         - "{{ oracle_home }}"
         - "{{ oracle_base }}"
         - "{{ oracle_inventory }}"
@@ -96,41 +95,41 @@
       ansible.builtin.blockinfile:
         path: /etc/security/limits.conf
         block: |
-          oracle soft nproc 2047 
-          oracle hard nproc 16384 
-          oracle soft nofile 1024 
-          oracle hard nofile 65536 
-          oracle soft stack 10240 
-          oracle hard stack 10240 
-          oracle soft memlock unlimited 
-          oracle hard memlock unlimited 
+          oracle soft nproc 2047
+          oracle hard nproc 16384
+          oracle soft nofile 1024
+          oracle hard nofile 65536
+          oracle soft stack 10240
+          oracle hard stack 10240
+          oracle soft memlock unlimited
+          oracle hard memlock unlimited
 
     - name: Set additional Oracle performance parameters to /etc/sysctl.conf.
       tags: sysctl
-      ansible.builtin.sysctl:
+      ansible.posix.sysctl:
         name: "{{ item.key }}"
         value: "{{ item.value }}"
         reload: "{{ item.reload }}"
         sysctl_file: "/etc/sysctl.d/99-oracle-database-server-{{ v_maj }}c-preinstall-sysctl.conf"
       loop:
-        - { key: vm.swappiness, value: 1, reload: no }
-        - { key: kernel.panic_on_oops, value: 1, reload: no }
-        - { key: vm.dirty_background_ratio, value: 3, reload: no }
-        - { key: vm.dirty_ratio, value: 15, reload: no }
-        - { key: vm.dirty_expire_centisecs, value: 500, reload: no }
-        - { key: vm.dirty_writeback_centisecs, value: 100, reload: no }
-        - { key: fs.file-max, value: 6815744, reload: no }
-        - { key: fs.aio-max-nr, value: 3145728, reload: no }
-        - { key: kernel.shmmax, value: "{{ kernel_shmmax }}", reload: no }
-        - { key: kernel.shmall, value: "{{ ( kernel_shmmax / kernel_shmni ) | int }}", reload: no }
-        - { key: kernel.shmmni, value: "{{ kernel_shmni }}", reload: no }
-        - { key: kernel.sem, value: 250 32000 100 128, reload: no }
-        - { key: net.ipv4.ip_local_port_range, value: 9000 65500, reload: no }
-        - { key: net.core.rmem_default, value: 262144, reload: no }
-        - { key: net.core.rmem_max, value: 4194304, reload: no }
-        - { key: net.core.wmem_default, value: 262144, reload: no }
-        - { key: net.core.wmem_max, value: 1048576, reload: no }
-        - { key: vm.hugetlb_shm_group, value: 1000, reload: yes }
+        - { key: vm.swappiness, value: 1, reload: false }
+        - { key: kernel.panic_on_oops, value: 1, reload: false }
+        - { key: vm.dirty_background_ratio, value: 3, reload: false }
+        - { key: vm.dirty_ratio, value: 15, reload: false }
+        - { key: vm.dirty_expire_centisecs, value: 500, reload: false }
+        - { key: vm.dirty_writeback_centisecs, value: 100, reload: false }
+        - { key: fs.file-max, value: 6815744, reload: false }
+        - { key: fs.aio-max-nr, value: 3145728, reload: false }
+        - { key: kernel.shmmax, value: "{{ kernel_shmmax }}", reload: false }
+        - { key: kernel.shmall, value: "{{ (kernel_shmmax / kernel_shmni) | int }}", reload: false }
+        - { key: kernel.shmmni, value: "{{ kernel_shmni }}", reload: false }
+        - { key: kernel.sem, value: 250 32000 100 128, reload: false }
+        - { key: net.ipv4.ip_local_port_range, value: 9000 65500, reload: false }
+        - { key: net.core.rmem_default, value: 262144, reload: false }
+        - { key: net.core.rmem_max, value: 4194304, reload: false }
+        - { key: net.core.wmem_default, value: 262144, reload: false }
+        - { key: net.core.wmem_max, value: 1048576, reload: false }
+        - { key: vm.hugetlb_shm_group, value: 1000, reload: true }
 
     - name: Add info to oracle user and root .bash_profile.
       tags: user_mgmt, users
@@ -139,25 +138,22 @@
         owner: "{{ item.owner }}"
         group: "{{ item.group }}"
         create: true
-        block: | 
-          # User specific environment and startup programs
+        block: |
           umask 022
-          ulimit -u 16384  
-          ulimit -n 65536 
-          ulimit -s  10240   
-          #defaults for shell startup for ulimits of {{ oracle_user }} user
+          ulimit -u 16384
+          ulimit -n 65536
+          ulimit -s  10240      
           export ORACLE_BASE={{ oracle_base }}
-          export ORACLE_HOME={{ oracle_home }}
+          export ORACLE_HOME={{ oracle_home }}    
           {{ 'export PATH=$PATH:' + oracle_home + '/bin:' + oracle_home + '/OPatch' }}{{ ':' + grid_home + '/bin:' + grid_home + '/OPatch' if asm_setup }}
           export CV_ASSUME_DISTID=RHEL{{ ansible_distribution_version }}
           export ORACLE_SID={{ db_unique_name }}
           ORAENV_ASK=NO
-          #. oraenv
           ORAENV_ASK=YES
       loop:
         - { path: "/home/{{ oracle_user }}", owner: "{{ oracle_user }}", group: oinstall }
         - { path: /root, owner: root, group: root }
-    
+
     - name: Ensure NFS directory is properly mounted.
       tags: nfs
       ansible.posix.mount:
@@ -171,7 +167,7 @@
       tags: rpm, ora_val
       ansible.builtin.dnf:
         name: "{{ ora_val }}"
-        disable_gpg_check: true 
+        disable_gpg_check: true
       when: install_rpms
 
     - name: Ensure oinstall group owns /u01 directory.
@@ -182,7 +178,7 @@
         group: oinstall
         mode: '775'
         state: directory
-        recurse: True
+        recurse: true
 
     - name: Reboot db servers.
       tags: reboot
@@ -196,4 +192,17 @@
       failed_when: "'[never]' not in hugepage_validate.stdout"
 
   handlers:
-    - include_tasks: handlers/main.yaml
+    - name: Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Restart chronyd
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
+
+    - name: Reload firewall
+      ansible.builtin.systemd:
+        name: firewalld
+        state: reloaded
